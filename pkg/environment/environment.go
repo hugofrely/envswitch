@@ -11,19 +11,19 @@ import (
 
 // Environment represents a saved development environment
 type Environment struct {
-	Name             string                 `yaml:"name"`
-	Description      string                 `yaml:"description"`
-	CreatedAt        time.Time              `yaml:"created_at"`
-	UpdatedAt        time.Time              `yaml:"updated_at"`
-	LastUsed         time.Time              `yaml:"last_used"`
-	LastSnapshot     time.Time              `yaml:"last_snapshot"`
-	Tools            map[string]ToolConfig  `yaml:"tools"`
-	EnvVars          map[string]string      `yaml:"environment_variables"`
-	Hooks            Hooks                  `yaml:"hooks,omitempty"`
-	Tags             []string               `yaml:"tags,omitempty"`
-	Metadata         MetadataInfo           `yaml:"metadata,omitempty"`
-	SnapshotInfo     SnapshotInfo           `yaml:"snapshot_info,omitempty"`
-	Path             string                 `yaml:"-"`
+	Name         string                `yaml:"name"`
+	Description  string                `yaml:"description"`
+	CreatedAt    time.Time             `yaml:"created_at"`
+	UpdatedAt    time.Time             `yaml:"updated_at"`
+	LastUsed     time.Time             `yaml:"last_used"`
+	LastSnapshot time.Time             `yaml:"last_snapshot"`
+	Tools        map[string]ToolConfig `yaml:"tools"`
+	EnvVars      map[string]string     `yaml:"environment_variables"`
+	Hooks        Hooks                 `yaml:"hooks,omitempty"`
+	Tags         []string              `yaml:"tags,omitempty"`
+	Metadata     MetadataInfo          `yaml:"metadata,omitempty"`
+	SnapshotInfo SnapshotInfo          `yaml:"snapshot_info,omitempty"`
+	Path         string                `yaml:"-"`
 }
 
 // ToolConfig represents configuration for a specific tool

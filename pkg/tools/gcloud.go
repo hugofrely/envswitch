@@ -123,12 +123,12 @@ func (g *GCloudTool) ValidateSnapshot(snapshotPath string) error {
 
 func (g *GCloudTool) Diff(snapshotPath string) ([]Change, error) {
 	// Get current metadata
-	currentMeta, err := g.GetMetadata()
+	_, err := g.GetMetadata()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current metadata: %w", err)
 	}
 
-	// TODO: Read metadata from snapshot
+	// TODO: Read metadata from snapshot and compare with current state
 	// For now, return empty changes
 	var changes []Change
 
