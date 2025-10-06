@@ -193,6 +193,13 @@ func TestKubectlTool_GetMetadata(t *testing.T) {
 }
 
 func TestKubectlTool_Diff(t *testing.T) {
+	tool := NewKubectlTool()
+
+	// This test will only pass if kubectl is installed
+	if !tool.IsInstalled() {
+		t.Skip("kubectl is not installed, skipping diff test")
+	}
+
 	tmpDir, err := os.MkdirTemp("", "envswitch-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
@@ -203,10 +210,6 @@ func TestKubectlTool_Diff(t *testing.T) {
 	snapshotPath := filepath.Join(tmpDir, "snapshot")
 	os.MkdirAll(snapshotPath, 0755)
 	os.WriteFile(filepath.Join(snapshotPath, "config"), []byte("test"), 0644)
-
-	tool := &KubectlTool{
-		KubeConfigDir: filepath.Join(tmpDir, "kube"),
-	}
 
 	// Call Diff (currently returns empty changes)
 	changes, err := tool.Diff(snapshotPath)

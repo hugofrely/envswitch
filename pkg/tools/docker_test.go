@@ -185,6 +185,13 @@ func TestDockerTool_GetMetadata(t *testing.T) {
 }
 
 func TestDockerTool_Diff(t *testing.T) {
+	tool := NewDockerTool()
+
+	// This test will only pass if docker is installed
+	if !tool.IsInstalled() {
+		t.Skip("docker is not installed, skipping diff test")
+	}
+
 	tmpDir, err := os.MkdirTemp("", "envswitch-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
@@ -195,10 +202,6 @@ func TestDockerTool_Diff(t *testing.T) {
 	snapshotPath := filepath.Join(tmpDir, "snapshot")
 	os.MkdirAll(snapshotPath, 0755)
 	os.WriteFile(filepath.Join(snapshotPath, "config.json"), []byte("{}"), 0644)
-
-	tool := &DockerTool{
-		DockerConfigDir: filepath.Join(tmpDir, "docker"),
-	}
 
 	// Call Diff (currently returns empty changes)
 	changes, err := tool.Diff(snapshotPath)
