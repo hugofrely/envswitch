@@ -190,7 +190,7 @@ add_to_path() {
     # Ask user if they want to add to PATH
     echo ""
     echo -n "Add $INSTALL_DIR to PATH in $SHELL_RC? [Y/n] "
-    read -r response
+    read -r response < /dev/tty
     response=${response:-Y}
 
     if [[ "$response" =~ ^[Yy]$ ]]; then
@@ -228,7 +228,7 @@ verify_installation() {
 install_completion() {
     echo ""
     echo -n "Install shell auto-completion? [Y/n] "
-    read -r response
+    read -r response < /dev/tty
     response=${response:-Y}
 
     if [[ ! "$response" =~ ^[Yy]$ ]]; then
