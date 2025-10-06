@@ -39,6 +39,16 @@ test: ## Run tests
 	@echo "Running tests..."
 	$(GOTEST) -v ./...
 
+test-race: ## Run tests with race detector
+	@echo "Running tests with race detector..."
+	$(GOTEST) -race -v ./...
+
+test-coverage: ## Run tests with coverage
+	@echo "Running tests with coverage..."
+	$(GOTEST) -race -coverprofile=coverage.txt -covermode=atomic ./...
+	@$(GOCMD) tool cover -html=coverage.txt -o coverage.html
+	@echo "Coverage report generated: coverage.html"
+
 clean: ## Clean build artifacts
 	@echo "Cleaning..."
 	$(GOCLEAN)
@@ -48,6 +58,27 @@ deps: ## Download dependencies
 	@echo "Downloading dependencies..."
 	$(GOMOD) download
 	$(GOMOD) tidy
+
+lint: ## Run linter
+	@echo "Running linter..."
+	@which golangci-lint > /dev/null || (echo "golangci-lint not installed. Install with: brew install golangci-lint" && exit 1)
+	@golangci-lint run
+
+fmt: ## Format code
+	@echo "Formatting code..."
+	@gofmt -w .
+	@$(GOCMD) mod tidy
+
+vet: ## Run go vet
+	@echo "Running go vet..."
+	@$(GOCMD) vet ./...
+
+ci: fmt vet test-race ## Run all CI checks locally
+	@echo "All CI checks passed!"
+
+setup-hooks: ## Install git pre-commit hooks
+	@echo "Installing git hooks..."
+	@bash scripts/setup-hooks.sh
 
 run: build ## Build and run
 	@./$(BUILD_DIR)/$(BINARY_NAME)

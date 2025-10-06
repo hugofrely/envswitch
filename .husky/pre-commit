@@ -1,0 +1,31 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# EnvSwitch Pre-commit Hook
+# Runs before each commit to ensure code quality
+
+echo "🔍 Running pre-commit checks..."
+
+# 1. Format code
+echo "📝 Formatting code..."
+make fmt || exit 1
+
+# 2. Run go vet
+echo "🔎 Running go vet..."
+make vet || exit 1
+
+# 3. Run tests
+echo "🧪 Running tests..."
+go test -short ./... || {
+    echo "❌ Tests failed. Please fix before committing."
+    exit 1
+}
+
+# 4. Check build
+echo "🏗️  Building..."
+go build ./... || {
+    echo "❌ Build failed. Please fix before committing."
+    exit 1
+}
+
+echo "✅ All pre-commit checks passed!"
