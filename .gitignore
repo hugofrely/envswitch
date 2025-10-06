@@ -1,0 +1,44 @@
+# Binaries
+bin/
+envswitch
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# EnvSwitch specific
+.envswitch/
+
+# Build artifacts
+dist/
+release/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+pdr.txt
