@@ -36,11 +36,19 @@ cd envswitch
 make install
 ```
 
-### Option 3: Install Script (Coming Soon)
+### Option 3: Install Script (Recommended)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hugofrely/envswitch/main/install.sh | bash
 ```
+
+This automatically:
+- Detects your platform
+- Installs the latest version
+- Configures PATH
+- **Optionally installs auto-completion** (will prompt)
+
+See [INSTALL.md](../INSTALL.md) for more options.
 
 ## First Time Setup
 
@@ -80,18 +88,29 @@ Your prompt will now show the current environment: `(work) user@machine$`
 
 ### 3. Enable Auto-completion (Optional)
 
+**If you used the install script:**
+Auto-completion should already be installed (the installer prompts you).
+
+**If you installed manually:**
 ```bash
 # Bash
 envswitch completion bash > /usr/local/etc/bash_completion.d/envswitch
 
 # Zsh
-envswitch completion zsh > "${fpath[1]}/_envswitch"
+mkdir -p ~/.zsh/completion
+envswitch completion zsh > ~/.zsh/completion/_envswitch
+echo 'fpath=(~/.zsh/completion $fpath)' >> ~/.zshrc
+echo 'autoload -Uz compinit && compinit' >> ~/.zshrc
+source ~/.zshrc
 
 # Fish
+mkdir -p ~/.config/fish/completions
 envswitch completion fish > ~/.config/fish/completions/envswitch.fish
 ```
 
 Now you can use `envswitch switch <TAB>` to see available environments!
+
+📖 See [COMPLETION_SETUP.md](../COMPLETION_SETUP.md) for detailed instructions.
 
 ## Creating Your First Environment
 
