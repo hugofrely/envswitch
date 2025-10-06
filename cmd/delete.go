@@ -16,12 +16,13 @@ var (
 )
 
 var deleteCmd = &cobra.Command{
-	Use:     "delete <name>",
-	Aliases: []string{"rm"},
-	Short:   "Delete an environment",
-	Long:    `Delete an environment and all its snapshots.`,
-	Args:    cobra.ExactArgs(1),
-	RunE:    runDelete,
+	Use:               "delete <name>",
+	Aliases:           []string{"rm"},
+	Short:             "Delete an environment",
+	Long:              `Delete an environment and all its snapshots.`,
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: completeEnvironmentNames,
+	RunE:              runDelete,
 }
 
 func init() {

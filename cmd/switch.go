@@ -31,8 +31,9 @@ var switchCmd = &cobra.Command{
 	Short: "Switch to another environment",
 	Long: `Switch to another environment by saving the current state
 and restoring the target environment's snapshot.`,
-	Args: cobra.ExactArgs(1),
-	RunE: runSwitch,
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: completeEnvironmentNames,
+	RunE:              runSwitch,
 }
 
 func init() {
@@ -312,6 +313,26 @@ func snapshotCurrentEnvironment(env *environment.Environment) error {
 		snapshotCount++
 	}
 
+	// Capture and save environment variables if configured
+	if len(env.EnvVars) > 0 {
+		fmt.Println("  Capturing environment variables...")
+		varNames := make([]string, 0, len(env.EnvVars))
+		for varName := range env.EnvVars {
+			varNames = append(varNames, varName)
+		}
+
+		capturedVars, captureErr := environment.CaptureEnvVars(varNames)
+		if captureErr != nil {
+			fmt.Printf("  ⚠️  Failed to capture environment variables: %v\n", captureErr)
+		} else {
+			if saveErr := env.SaveEnvVars(capturedVars); saveErr != nil {
+				fmt.Printf("  ⚠️  Failed to save environment variables: %v\n", saveErr)
+			} else {
+				fmt.Printf("  ✓ Captured %d environment variable(s)\n", len(capturedVars))
+			}
+		}
+	}
+
 	if snapshotCount > 0 {
 		env.LastSnapshot = time.Now()
 	}
@@ -354,6 +375,19 @@ func restoreEnvironment(env *environment.Environment) (int, error) {
 			continue
 		}
 		restoredCount++
+	}
+
+	// Restore environment variables if available
+	envVars, loadErr := env.LoadEnvVars()
+	if loadErr != nil {
+		fmt.Printf("  ⚠️  Failed to load environment variables: %v\n", loadErr)
+	} else if len(envVars) > 0 {
+		fmt.Println("  Restoring environment variables...")
+		if restoreErr := environment.RestoreEnvVars(envVars); restoreErr != nil {
+			fmt.Printf("  ⚠️  Failed to restore environment variables: %v\n", restoreErr)
+		} else {
+			fmt.Printf("  ✓ Restored %d environment variable(s)\n", len(envVars))
+		}
 	}
 
 	return restoredCount, nil

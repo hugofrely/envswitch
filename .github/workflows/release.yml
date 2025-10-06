@@ -9,24 +9,67 @@ permissions:
   contents: write
 
 jobs:
-  goreleaser:
+  release:
+    name: Create Release
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v5
+      - name: Run tests
+        run: make test
+
+      - name: Get version info
+        id: version
+        run: |
+          VERSION=$(git describe --tags --always --dirty)
+          GIT_COMMIT=$(git rev-parse --short HEAD)
+          BUILD_DATE=$(date -u '+%Y-%m-%d_%H:%M:%S')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "commit=${GIT_COMMIT}" >> $GITHUB_OUTPUT
+          echo "date=${BUILD_DATE}" >> $GITHUB_OUTPUT
+
+      - name: Build for all platforms
+        run: |
+          LDFLAGS="-X github.com/hugofrely/envswitch/cmd.Version=${{ steps.version.outputs.version }} -X github.com/hugofrely/envswitch/cmd.GitCommit=${{ steps.version.outputs.commit }} -X github.com/hugofrely/envswitch/cmd.BuildDate=${{ steps.version.outputs.date }}"
+          
+          # Linux AMD64
+          GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o bin/envswitch-linux-amd64
+          
+          # Linux ARM64
+          GOOS=linux GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o bin/envswitch-linux-arm64
+          
+          # macOS AMD64
+          GOOS=darwin GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o bin/envswitch-darwin-amd64
+          
+          # macOS ARM64
+          GOOS=darwin GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o bin/envswitch-darwin-arm64
+          
+          # Windows AMD64
+          GOOS=windows GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o bin/envswitch-windows-amd64.exe
+          
+          # Create checksums
+          cd bin
+          sha256sum * > checksums.txt
+          cd ..
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
         with:
-          distribution: goreleaser
-          version: latest
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            bin/envswitch-linux-amd64
+            bin/envswitch-linux-arm64
+            bin/envswitch-darwin-amd64
+            bin/envswitch-darwin-arm64
+            bin/envswitch-windows-amd64.exe
+            bin/checksums.txt
+          generate_release_notes: true
+          draft: false
+          prerelease: false
