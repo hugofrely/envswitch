@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hugofrely/envswitch/pkg/environment"
+	"github.com/hugofrely/envswitch/pkg/tools"
 	"github.com/spf13/cobra"
 )
 
@@ -77,22 +78,92 @@ func runCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Initialize tools
-	tools := []string{"gcloud", "kubectl", "aws", "azure", "docker", "terraform", "git"}
-	for _, tool := range tools {
-		env.Tools[tool] = environment.ToolConfig{
+	toolNames := []string{"gcloud", "kubectl", "aws", "azure", "docker", "terraform", "git"}
+	for _, toolName := range toolNames {
+		env.Tools[toolName] = environment.ToolConfig{
 			Enabled:      createFromCurrent, // Only enable if creating from current
-			SnapshotPath: filepath.Join("snapshots", tool),
+			SnapshotPath: filepath.Join("snapshots", toolName),
 			Metadata:     make(map[string]interface{}),
 		}
 	}
 
 	if createFromCurrent {
 		fmt.Println("📸 Capturing current state...")
-		// TODO: Implement actual snapshot capture
-		fmt.Println("  ✓ Environment structure created")
 		fmt.Println()
-		fmt.Println("⚠️  Note: Full snapshot implementation coming soon")
-		fmt.Println("    Tools: GCloud, Kubectl, AWS, Docker, Git")
+
+		// Capture snapshots for each tool
+		capturedCount := 0
+		availableTools := map[string]tools.Tool{
+			"gcloud":  tools.NewGCloudTool(),
+			"kubectl": tools.NewKubectlTool(),
+			"aws":     tools.NewAWSTool(),
+			"docker":  tools.NewDockerTool(),
+			"git":     tools.NewGitTool(),
+		}
+
+		for toolName, toolImpl := range availableTools {
+			// Check if tool is installed
+			if !toolImpl.IsInstalled() {
+				fmt.Printf("  ⊘ %s (not installed)\n", toolName)
+				env.Tools[toolName] = environment.ToolConfig{
+					Enabled:      false,
+					SnapshotPath: filepath.Join("snapshots", toolName),
+					Metadata:     make(map[string]interface{}),
+				}
+				continue
+			}
+
+			// Create snapshot path
+			snapshotPath := filepath.Join(envPath, "snapshots", toolName)
+
+			// Capture snapshot
+			if err := toolImpl.Snapshot(snapshotPath); err != nil {
+				fmt.Printf("  ⚠ %s (failed: %v)\n", toolName, err)
+				env.Tools[toolName] = environment.ToolConfig{
+					Enabled:      false,
+					SnapshotPath: filepath.Join("snapshots", toolName),
+					Metadata:     make(map[string]interface{}),
+				}
+				continue
+			}
+
+			// Get metadata
+			metadata, err := toolImpl.GetMetadata()
+			if err != nil {
+				metadata = make(map[string]interface{})
+			}
+
+			// Update environment config
+			env.Tools[toolName] = environment.ToolConfig{
+				Enabled:      true,
+				SnapshotPath: filepath.Join("snapshots", toolName),
+				Metadata:     metadata,
+			}
+
+			// Display success with metadata
+			fmt.Printf("  ✓ %s", toolName)
+			if len(metadata) > 0 {
+				fmt.Print(" (")
+				first := true
+				for key, value := range metadata {
+					if !first {
+						fmt.Print(", ")
+					}
+					fmt.Printf("%s: %v", key, value)
+					first = false
+				}
+				fmt.Print(")")
+			}
+			fmt.Println()
+
+			capturedCount++
+		}
+
+		// Update snapshot info
+		env.LastSnapshot = time.Now()
+		fmt.Println()
+		fmt.Printf("✅ Captured %d tool(s) successfully\n", capturedCount)
+		fmt.Println()
 	}
 
 	// Save metadata

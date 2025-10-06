@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/hugofrely/envswitch/internal/storage"
 )
 
 // GCloudTool implements the Tool interface for Google Cloud CLI
@@ -37,7 +39,7 @@ func (g *GCloudTool) Snapshot(snapshotPath string) error {
 
 	// Check if config directory exists
 	if _, err := os.Stat(g.ConfigPath); os.IsNotExist(err) {
-		return fmt.Errorf("gcloud config directory does not exist")
+		return fmt.Errorf("gcloud config directory does not exist: %s", g.ConfigPath)
 	}
 
 	// Create snapshot directory
@@ -45,9 +47,12 @@ func (g *GCloudTool) Snapshot(snapshotPath string) error {
 		return fmt.Errorf("failed to create snapshot directory: %w", err)
 	}
 
-	// Copy the entire gcloud config directory
-	// TODO: Implement recursive copy utility
-	return fmt.Errorf("snapshot not yet implemented - use copyDir utility")
+	// Copy the entire gcloud config directory to snapshot
+	if err := storage.CopyDir(g.ConfigPath, snapshotPath); err != nil {
+		return fmt.Errorf("failed to copy gcloud config: %w", err)
+	}
+
+	return nil
 }
 
 func (g *GCloudTool) Restore(snapshotPath string) error {
@@ -60,14 +65,25 @@ func (g *GCloudTool) Restore(snapshotPath string) error {
 		return fmt.Errorf("invalid snapshot: %w", err)
 	}
 
-	// Remove existing config directory
-	if err := os.RemoveAll(g.ConfigPath); err != nil {
-		return fmt.Errorf("failed to remove existing config: %w", err)
+	// Create parent directory if it doesn't exist
+	configParent := filepath.Dir(g.ConfigPath)
+	if err := os.MkdirAll(configParent, 0755); err != nil {
+		return fmt.Errorf("failed to create config parent directory: %w", err)
+	}
+
+	// Remove existing config directory if it exists
+	if _, err := os.Stat(g.ConfigPath); err == nil {
+		if err := os.RemoveAll(g.ConfigPath); err != nil {
+			return fmt.Errorf("failed to remove existing config: %w", err)
+		}
 	}
 
 	// Restore from snapshot
-	// TODO: Implement recursive copy utility
-	return fmt.Errorf("restore not yet implemented - use copyDir utility")
+	if err := storage.CopyDir(snapshotPath, g.ConfigPath); err != nil {
+		return fmt.Errorf("failed to restore gcloud config: %w", err)
+	}
+
+	return nil
 }
 
 func (g *GCloudTool) GetMetadata() (map[string]interface{}, error) {
@@ -130,7 +146,7 @@ func (g *GCloudTool) Diff(snapshotPath string) ([]Change, error) {
 
 	// TODO: Read metadata from snapshot and compare with current state
 	// For now, return empty changes
-	var changes []Change
+	changes := []Change{}
 
 	// This would compare currentMeta with snapshotMeta
 	// and generate a list of changes

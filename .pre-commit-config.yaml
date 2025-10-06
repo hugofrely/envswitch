@@ -1,0 +1,77 @@
+# Pre-commit hooks for EnvSwitch
+# Install: pip install pre-commit
+# Setup: pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # Go formatting
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-fmt
+        name: Go Format
+        description: Run gofmt on Go files
+
+      - id: go-vet
+        name: Go Vet
+        description: Run go vet on Go files
+
+      - id: go-imports
+        name: Go Imports
+        description: Run goimports on Go files
+        args: [-local, github.com/hugofrely/envswitch]
+
+      - id: go-mod-tidy
+        name: Go Mod Tidy
+        description: Run go mod tidy
+
+      - id: go-build
+        name: Go Build
+        description: Run go build
+
+      - id: go-test
+        name: Go Test
+        description: Run go test
+        args: [-short]
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim Trailing Whitespace
+        exclude: '\.md$'
+
+      - id: end-of-file-fixer
+        name: Fix End of Files
+
+      - id: check-yaml
+        name: Check YAML
+        args: [--safe]
+
+      - id: check-added-large-files
+        name: Check Large Files
+        args: [--maxkb=1000]
+
+      - id: check-merge-conflict
+        name: Check Merge Conflicts
+
+      - id: detect-private-key
+        name: Detect Private Keys
+
+      - id: mixed-line-ending
+        name: Fix Mixed Line Endings
+
+  # golangci-lint (optional, requires golangci-lint installed)
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v1.55.2
+    hooks:
+      - id: golangci-lint
+        name: golangci-lint
+        args: [--timeout=5m]
+
+# Configuration
+default_language_version:
+  python: python3
+
+fail_fast: false
