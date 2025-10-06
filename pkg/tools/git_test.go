@@ -191,3 +191,189 @@ func TestGitTool_GetMetadata(t *testing.T) {
 		t.Error("Expected non-nil metadata map")
 	}
 }
+
+func TestGitTool_getSnapshotMetadata(t *testing.T) {
+	t.Run("reads metadata from snapshot gitconfig", func(t *testing.T) {
+		// Create temp directory for snapshot
+		tmpDir, err := os.MkdirTemp("", "envswitch-test-*")
+		if err != nil {
+			t.Fatalf("Failed to create temp dir: %v", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		// Create snapshot gitconfig with test data
+		gitconfigContent := `[user]
+	name = Test User
+	email = test@example.com
+	signingkey = ABC123
+[core]
+	editor = vim
+`
+		snapshotPath := filepath.Join(tmpDir, "snapshot")
+		os.MkdirAll(snapshotPath, 0755)
+		os.WriteFile(filepath.Join(snapshotPath, "gitconfig"), []byte(gitconfigContent), 0644)
+
+		tool := NewGitTool()
+		metadata, err := tool.getSnapshotMetadata(snapshotPath)
+
+		if err != nil {
+			t.Fatalf("getSnapshotMetadata failed: %v", err)
+		}
+
+		// Verify all user fields were extracted
+		if metadata["user_name"] != "Test User" {
+			t.Errorf("Expected user_name 'Test User', got '%v'", metadata["user_name"])
+		}
+		if metadata["user_email"] != "test@example.com" {
+			t.Errorf("Expected user_email 'test@example.com', got '%v'", metadata["user_email"])
+		}
+		if metadata["signing_key"] != "ABC123" {
+			t.Errorf("Expected signing_key 'ABC123', got '%v'", metadata["signing_key"])
+		}
+	})
+
+	t.Run("handles missing gitconfig file", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "envswitch-test-*")
+		if err != nil {
+			t.Fatalf("Failed to create temp dir: %v", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		tool := NewGitTool()
+		metadata, err := tool.getSnapshotMetadata(tmpDir)
+
+		// Should not error, just return empty metadata
+		if err != nil {
+			t.Fatalf("getSnapshotMetadata should not error on missing file: %v", err)
+		}
+		if len(metadata) != 0 {
+			t.Errorf("Expected empty metadata, got %v", metadata)
+		}
+	})
+
+	t.Run("handles partial metadata", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "envswitch-test-*")
+		if err != nil {
+			t.Fatalf("Failed to create temp dir: %v", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		// Only name, no email or signingkey
+		gitconfigContent := `[user]
+	name = Partial User
+`
+		snapshotPath := filepath.Join(tmpDir, "snapshot")
+		os.MkdirAll(snapshotPath, 0755)
+		os.WriteFile(filepath.Join(snapshotPath, "gitconfig"), []byte(gitconfigContent), 0644)
+
+		tool := NewGitTool()
+		metadata, err := tool.getSnapshotMetadata(snapshotPath)
+
+		if err != nil {
+			t.Fatalf("getSnapshotMetadata failed: %v", err)
+		}
+
+		if metadata["user_name"] != "Partial User" {
+			t.Errorf("Expected user_name 'Partial User', got '%v'", metadata["user_name"])
+		}
+		if _, exists := metadata["user_email"]; exists {
+			t.Error("Expected user_email to not exist")
+		}
+		if _, exists := metadata["signing_key"]; exists {
+			t.Error("Expected signing_key to not exist")
+		}
+	})
+}
+
+func TestGitTool_Diff(t *testing.T) {
+	t.Run("detects changes between snapshots", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "envswitch-test-*")
+		if err != nil {
+			t.Fatalf("Failed to create temp dir: %v", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		// Create snapshot with old metadata
+		oldGitconfigContent := `[user]
+	name = Old User
+	email = old@example.com
+`
+		snapshotPath := filepath.Join(tmpDir, "snapshot")
+		os.MkdirAll(snapshotPath, 0755)
+		os.WriteFile(filepath.Join(snapshotPath, "gitconfig"), []byte(oldGitconfigContent), 0644)
+
+		// Create second snapshot with new metadata
+		newGitconfigContent := `[user]
+	name = New User
+	email = old@example.com
+	signingkey = XYZ789
+`
+		newSnapshotPath := filepath.Join(tmpDir, "new-snapshot")
+		os.MkdirAll(newSnapshotPath, 0755)
+		os.WriteFile(filepath.Join(newSnapshotPath, "gitconfig"), []byte(newGitconfigContent), 0644)
+
+		tool := NewGitTool()
+
+		// Get metadata from both snapshots
+		oldMeta, err := tool.getSnapshotMetadata(snapshotPath)
+		if err != nil {
+			t.Fatalf("Failed to get old metadata: %v", err)
+		}
+
+		newMeta, err := tool.getSnapshotMetadata(newSnapshotPath)
+		if err != nil {
+			t.Fatalf("Failed to get new metadata: %v", err)
+		}
+
+		// Compare manually using compareMetadataField
+		var changes []Change
+		changes = append(changes, compareMetadataField("user_name", oldMeta, newMeta)...)
+		changes = append(changes, compareMetadataField("user_email", oldMeta, newMeta)...)
+		changes = append(changes, compareMetadataField("signing_key", oldMeta, newMeta)...)
+
+		// Should detect:
+		// - Modified: user_name (Old User -> New User)
+		// - Added: signing_key (XYZ789)
+		// - Unchanged: user_email
+
+		if len(changes) != 2 {
+			t.Errorf("Expected 2 changes, got %d", len(changes))
+		}
+
+		// Find the changes
+		var nameChange, keyChange *Change
+		for i := range changes {
+			if changes[i].Path == "user_name" {
+				nameChange = &changes[i]
+			}
+			if changes[i].Path == "signing_key" {
+				keyChange = &changes[i]
+			}
+		}
+
+		if nameChange == nil {
+			t.Error("Expected user_name change")
+		} else {
+			if nameChange.Type != ChangeTypeModified {
+				t.Errorf("Expected Modified type for user_name, got %v", nameChange.Type)
+			}
+			if nameChange.OldValue != "Old User" {
+				t.Errorf("Expected OldValue 'Old User', got '%s'", nameChange.OldValue)
+			}
+			if nameChange.NewValue != "New User" {
+				t.Errorf("Expected NewValue 'New User', got '%s'", nameChange.NewValue)
+			}
+		}
+
+		if keyChange == nil {
+			t.Error("Expected signing_key change")
+		} else {
+			if keyChange.Type != ChangeTypeAdded {
+				t.Errorf("Expected Added type for signing_key, got %v", keyChange.Type)
+			}
+			if keyChange.NewValue != "XYZ789" {
+				t.Errorf("Expected NewValue 'XYZ789', got '%s'", keyChange.NewValue)
+			}
+		}
+	})
+}

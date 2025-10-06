@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -120,12 +121,39 @@ func (d *DockerTool) Diff(snapshotPath string) ([]Change, error) {
 		return nil, fmt.Errorf("failed to get current metadata: %w", err)
 	}
 
+	// Get snapshot metadata
+	snapshotMeta, err := d.getSnapshotMetadata(snapshotPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get snapshot metadata: %w", err)
+	}
+
 	changes := []Change{}
 
-	// TODO: Read metadata from snapshot and compare
-	_ = currentMeta
+	// Compare context
+	changes = append(changes, compareMetadataField("context", snapshotMeta, currentMeta)...)
+
+	// Note: We don't compare version as it's about the Docker server version,
+	// not about the configuration state
 
 	return changes, nil
+}
+
+// getSnapshotMetadata reads metadata from a snapshot by parsing config.json
+func (d *DockerTool) getSnapshotMetadata(snapshotPath string) (map[string]interface{}, error) {
+	metadata := make(map[string]interface{})
+
+	configPath := filepath.Join(snapshotPath, "config.json")
+	if data, err := os.ReadFile(configPath); err == nil {
+		// Parse JSON to extract current context
+		var config map[string]interface{}
+		if err := json.Unmarshal(data, &config); err == nil {
+			if currentContext, ok := config["currentContext"].(string); ok {
+				metadata["context"] = currentContext
+			}
+		}
+	}
+
+	return metadata, nil
 }
 
 // execCommand executes a command and returns the output
