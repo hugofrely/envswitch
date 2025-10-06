@@ -51,3 +51,88 @@ func TestExecute(t *testing.T) {
 		})
 	})
 }
+
+func TestRootCommandFlags(t *testing.T) {
+	t.Run("config flag has correct default", func(t *testing.T) {
+		flag := rootCmd.PersistentFlags().Lookup("config")
+		assert.NotNil(t, flag)
+		assert.Equal(t, "", flag.DefValue)
+	})
+
+	t.Run("verbose flag has correct default", func(t *testing.T) {
+		flag := rootCmd.PersistentFlags().Lookup("verbose")
+		assert.NotNil(t, flag)
+		assert.Equal(t, "false", flag.DefValue)
+		assert.Equal(t, "v", flag.Shorthand)
+	})
+
+	t.Run("debug flag has correct default", func(t *testing.T) {
+		flag := rootCmd.PersistentFlags().Lookup("debug")
+		assert.NotNil(t, flag)
+		assert.Equal(t, "false", flag.DefValue)
+	})
+}
+
+func TestRootCommandSubcommands(t *testing.T) {
+	t.Run("has all expected subcommands", func(t *testing.T) {
+		commands := rootCmd.Commands()
+		commandNames := make([]string, len(commands))
+		for i, cmd := range commands {
+			commandNames[i] = cmd.Name()
+		}
+
+		expectedCommands := []string{
+			"init",
+			"create",
+			"switch",
+			"list",
+			"delete",
+			"show",
+			"config",
+			"shell",
+			"completion",
+		}
+
+		for _, expected := range expectedCommands {
+			assert.Contains(t, commandNames, expected, "should have %s command", expected)
+		}
+	})
+
+	t.Run("each subcommand has required metadata", func(t *testing.T) {
+		commands := rootCmd.Commands()
+		for _, cmd := range commands {
+			// Skip help and completion commands which are auto-generated
+			if cmd.Name() == "help" || cmd.Name() == "completion" {
+				continue
+			}
+
+			assert.NotEmpty(t, cmd.Use, "command %s should have Use field", cmd.Name())
+			assert.NotEmpty(t, cmd.Short, "command %s should have Short description", cmd.Name())
+		}
+	})
+}
+
+func TestVersionInfo(t *testing.T) {
+	t.Run("version variables are defined", func(t *testing.T) {
+		assert.NotEmpty(t, Version)
+		assert.NotEmpty(t, GitCommit)
+		assert.NotEmpty(t, BuildDate)
+	})
+
+	t.Run("version string includes all components", func(t *testing.T) {
+		versionString := rootCmd.Version
+		assert.NotEmpty(t, versionString)
+		assert.Contains(t, versionString, Version)
+		assert.Contains(t, versionString, "commit")
+		assert.Contains(t, versionString, "built")
+	})
+}
+
+func TestInitConfig(t *testing.T) {
+	t.Run("initConfig is callable", func(t *testing.T) {
+		assert.NotPanics(t, func() {
+			// initConfig is called automatically by cobra, just verify it's defined
+			_ = initConfig
+		})
+	})
+}

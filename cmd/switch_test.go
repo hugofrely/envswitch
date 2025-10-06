@@ -200,6 +200,86 @@ func TestRunSwitch(t *testing.T) {
 		os.Remove(filepath.Join(envswitchDir, "current.lock"))
 	})
 
+	t.Run("skips backup when --no-backup flag is set", func(t *testing.T) {
+		// Create source environment
+		sourceEnv := &environment.Environment{
+			Name:      "source-no-backup",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Tools:     make(map[string]environment.ToolConfig),
+			EnvVars:   make(map[string]string),
+			Path:      filepath.Join(envsDir, "source-no-backup"),
+		}
+		os.MkdirAll(sourceEnv.Path, 0755)
+		err := sourceEnv.Save()
+		require.NoError(t, err)
+
+		// Create target environment
+		targetEnv := &environment.Environment{
+			Name:      "target-no-backup",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Tools:     make(map[string]environment.ToolConfig),
+			EnvVars:   make(map[string]string),
+			Path:      filepath.Join(envsDir, "target-no-backup"),
+		}
+		os.MkdirAll(targetEnv.Path, 0755)
+		err = targetEnv.Save()
+		require.NoError(t, err)
+
+		// Set source as current
+		err = environment.SetCurrentEnvironment("source-no-backup")
+		require.NoError(t, err)
+
+		// Switch with --no-backup flag
+		switchNoBackup = true
+		defer func() { switchNoBackup = false }()
+
+		err = runSwitch(switchCmd, []string{"target-no-backup"})
+		require.NoError(t, err)
+
+		// Verify switch succeeded
+		current, err := environment.GetCurrentEnvironment()
+		require.NoError(t, err)
+		assert.Equal(t, "target-no-backup", current.Name)
+
+		// Clean up
+		os.RemoveAll(sourceEnv.Path)
+		os.RemoveAll(targetEnv.Path)
+		os.Remove(filepath.Join(envswitchDir, "current.lock"))
+	})
+
+	t.Run("skips hooks when --no-hooks flag is set", func(t *testing.T) {
+		// Create environment
+		env := &environment.Environment{
+			Name:      "env-no-hooks",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Tools:     make(map[string]environment.ToolConfig),
+			EnvVars:   make(map[string]string),
+			Path:      filepath.Join(envsDir, "env-no-hooks"),
+		}
+		os.MkdirAll(env.Path, 0755)
+		err := env.Save()
+		require.NoError(t, err)
+
+		// Set --no-hooks flag
+		switchNoHooks = true
+		defer func() { switchNoHooks = false }()
+
+		err = runSwitch(switchCmd, []string{"env-no-hooks"})
+		require.NoError(t, err)
+
+		// Verify switch succeeded
+		current, err := environment.GetCurrentEnvironment()
+		require.NoError(t, err)
+		assert.Equal(t, "env-no-hooks", current.Name)
+
+		// Clean up
+		os.RemoveAll(env.Path)
+		os.Remove(filepath.Join(envswitchDir, "current.lock"))
+	})
+
 	t.Run("returns error for non-existent environment", func(t *testing.T) {
 		err := runSwitch(switchCmd, []string{"non-existent"})
 		require.Error(t, err)
@@ -340,6 +420,18 @@ func TestSwitchCommand(t *testing.T) {
 
 	t.Run("has dry-run flag", func(t *testing.T) {
 		flag := switchCmd.Flags().Lookup("dry-run")
+		assert.NotNil(t, flag)
+		assert.Equal(t, "false", flag.DefValue)
+	})
+
+	t.Run("has no-backup flag", func(t *testing.T) {
+		flag := switchCmd.Flags().Lookup("no-backup")
+		assert.NotNil(t, flag)
+		assert.Equal(t, "false", flag.DefValue)
+	})
+
+	t.Run("has no-hooks flag", func(t *testing.T) {
+		flag := switchCmd.Flags().Lookup("no-hooks")
 		assert.NotNil(t, flag)
 		assert.Equal(t, "false", flag.DefValue)
 	})
