@@ -68,14 +68,9 @@ EnvSwitch is a CLI tool that captures, saves, and restores the complete state of
 
 ### 🚧 Phase 3: Advanced Features (NEXT)
 
-- [ ] Encryption support
 - [ ] TUI (Terminal UI)
-- [ ] Template system
-- [ ] Git sync
 - [ ] Import/Export
 - [ ] Plugin system
-- [ ] Remote sync
-- [ ] Team collaboration features
 
 ## 📁 Project Structure
 
