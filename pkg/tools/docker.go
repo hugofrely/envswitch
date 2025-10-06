@@ -33,10 +33,6 @@ func (d *DockerTool) IsInstalled() bool {
 }
 
 func (d *DockerTool) Snapshot(snapshotPath string) error {
-	if !d.IsInstalled() {
-		return fmt.Errorf("docker is not installed")
-	}
-
 	// Check if .docker directory exists
 	if _, err := os.Stat(d.DockerConfigDir); os.IsNotExist(err) {
 		return fmt.Errorf("docker config directory does not exist: %s", d.DockerConfigDir)
@@ -56,10 +52,6 @@ func (d *DockerTool) Snapshot(snapshotPath string) error {
 }
 
 func (d *DockerTool) Restore(snapshotPath string) error {
-	if !d.IsInstalled() {
-		return fmt.Errorf("docker is not installed")
-	}
-
 	// Validate snapshot first
 	if err := d.ValidateSnapshot(snapshotPath); err != nil {
 		return fmt.Errorf("invalid snapshot: %w", err)

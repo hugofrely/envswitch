@@ -33,10 +33,6 @@ func (k *KubectlTool) IsInstalled() bool {
 }
 
 func (k *KubectlTool) Snapshot(snapshotPath string) error {
-	if !k.IsInstalled() {
-		return fmt.Errorf("kubectl is not installed")
-	}
-
 	// Check if .kube directory exists
 	if _, err := os.Stat(k.KubeConfigDir); os.IsNotExist(err) {
 		return fmt.Errorf("kubectl config directory does not exist: %s", k.KubeConfigDir)
@@ -56,10 +52,6 @@ func (k *KubectlTool) Snapshot(snapshotPath string) error {
 }
 
 func (k *KubectlTool) Restore(snapshotPath string) error {
-	if !k.IsInstalled() {
-		return fmt.Errorf("kubectl is not installed")
-	}
-
 	// Validate snapshot first
 	if err := k.ValidateSnapshot(snapshotPath); err != nil {
 		return fmt.Errorf("invalid snapshot: %w", err)
