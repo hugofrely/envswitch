@@ -58,15 +58,15 @@ func TestChange(t *testing.T) {
 
 // MockTool is a mock implementation of the Tool interface for testing
 type MockTool struct {
-	name         string
-	installed    bool
-	snapshotErr  error
-	restoreErr   error
-	metadata     map[string]interface{}
-	metadataErr  error
-	validateErr  error
-	diffChanges  []Change
-	diffErr      error
+	name        string
+	installed   bool
+	snapshotErr error
+	restoreErr  error
+	metadata    map[string]interface{}
+	metadataErr error
+	validateErr error
+	diffChanges []Change
+	diffErr     error
 }
 
 func (m *MockTool) Name() string {
