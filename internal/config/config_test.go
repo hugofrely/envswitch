@@ -19,22 +19,14 @@ func TestDefaultConfig(t *testing.T) {
 	t.Run("has sensible defaults", func(t *testing.T) {
 		assert.Equal(t, "true", cfg.AutoSaveBeforeSwitch)
 		assert.False(t, cfg.VerifyAfterSwitch)
+		assert.True(t, cfg.BackupBeforeSwitch)
 		assert.Equal(t, 10, cfg.BackupRetention)
-		assert.Equal(t, "vim", cfg.DefaultEditor)
 		assert.True(t, cfg.EnablePromptIntegration)
 		assert.Equal(t, "({name})", cfg.PromptFormat)
 		assert.Equal(t, "blue", cfg.PromptColor)
-		assert.Equal(t, "info", cfg.LogLevel)
-		assert.False(t, cfg.EncryptionEnabled)
-		assert.True(t, cfg.EncryptionUseKeyring)
-		assert.False(t, cfg.AutoSync)
+		assert.Equal(t, "warn", cfg.LogLevel)
 		assert.True(t, cfg.ColorOutput)
 		assert.True(t, cfg.ShowTimestamps)
-	})
-
-	t.Run("has default exclude patterns", func(t *testing.T) {
-		assert.Contains(t, cfg.ExcludePatterns, "**/*.log")
-		assert.Contains(t, cfg.ExcludePatterns, "**/*.tmp")
 	})
 
 	t.Run("has empty exclude tools", func(t *testing.T) {
@@ -69,7 +61,7 @@ func TestLoadConfig(t *testing.T) {
 		cfg, err := LoadConfig()
 		require.NoError(t, err)
 		assert.NotNil(t, cfg)
-		assert.Equal(t, "info", cfg.LogLevel)
+		assert.Equal(t, "warn", cfg.LogLevel)
 	})
 
 	t.Run("loads config from file", func(t *testing.T) {
@@ -188,15 +180,13 @@ func TestConfigGet(t *testing.T) {
 		keys := []string{
 			"auto_save_before_switch",
 			"verify_after_switch",
+			"backup_before_switch",
 			"backup_retention",
-			"default_editor",
 			"enable_prompt_integration",
 			"prompt_format",
 			"prompt_color",
 			"log_level",
 			"log_file",
-			"encryption_enabled",
-			"encryption_use_keyring",
 			"color_output",
 			"show_timestamps",
 		}
@@ -255,11 +245,11 @@ func TestConfigSet(t *testing.T) {
 		assert.Contains(t, err.Error(), "invalid type")
 	})
 
-	t.Run("sets default_editor", func(t *testing.T) {
+	t.Run("rejects unknown key", func(t *testing.T) {
 		cfg := DefaultConfig()
-		err := cfg.Set("default_editor", "nano")
-		assert.NoError(t, err)
-		assert.Equal(t, "nano", cfg.DefaultEditor)
+		err := cfg.Set("unknown_key", "value")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown")
 	})
 
 	t.Run("sets enable_prompt_integration", func(t *testing.T) {
@@ -301,11 +291,18 @@ func TestConfigSet(t *testing.T) {
 		assert.Contains(t, err.Error(), "invalid value")
 	})
 
-	t.Run("sets encryption_enabled", func(t *testing.T) {
+	t.Run("sets backup_before_switch", func(t *testing.T) {
 		cfg := DefaultConfig()
-		err := cfg.Set("encryption_enabled", true)
+
+		// Test setting to false
+		err := cfg.Set("backup_before_switch", false)
 		assert.NoError(t, err)
-		assert.True(t, cfg.EncryptionEnabled)
+		assert.False(t, cfg.BackupBeforeSwitch)
+
+		// Test setting to true
+		err = cfg.Set("backup_before_switch", true)
+		assert.NoError(t, err)
+		assert.True(t, cfg.BackupBeforeSwitch)
 	})
 
 	t.Run("sets color_output", func(t *testing.T) {
@@ -343,7 +340,6 @@ func TestConfigPersistence(t *testing.T) {
 		cfg.LogLevel = "debug"
 		cfg.BackupRetention = 25
 		cfg.VerifyAfterSwitch = true
-		cfg.DefaultEditor = "emacs"
 		cfg.PromptColor = "red"
 
 		// Save
@@ -358,7 +354,6 @@ func TestConfigPersistence(t *testing.T) {
 		assert.Equal(t, "debug", loadedCfg.LogLevel)
 		assert.Equal(t, 25, loadedCfg.BackupRetention)
 		assert.True(t, loadedCfg.VerifyAfterSwitch)
-		assert.Equal(t, "emacs", loadedCfg.DefaultEditor)
 		assert.Equal(t, "red", loadedCfg.PromptColor)
 	})
 }

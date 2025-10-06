@@ -118,15 +118,13 @@ func TestRunConfigGet(t *testing.T) {
 		keys := []string{
 			"auto_save_before_switch",
 			"verify_after_switch",
+			"backup_before_switch",
 			"backup_retention",
-			"default_editor",
 			"enable_prompt_integration",
 			"prompt_format",
 			"prompt_color",
 			"log_level",
 			"log_file",
-			"encryption_enabled",
-			"encryption_use_keyring",
 			"color_output",
 			"show_timestamps",
 		}
@@ -236,14 +234,10 @@ func TestRunConfigSet(t *testing.T) {
 		assert.NoError(t, err, "config file should be created")
 	})
 
-	t.Run("sets editor value", func(t *testing.T) {
-		err := runConfigSet(configSetCmd, []string{"default_editor", "nano"})
-		assert.NoError(t, err)
-
-		// Verify it was saved
-		cfg, err := config.LoadConfig()
-		require.NoError(t, err)
-		assert.Equal(t, "nano", cfg.DefaultEditor)
+	t.Run("rejects unknown config key", func(t *testing.T) {
+		err := runConfigSet(configSetCmd, []string{"unknown_key", "value"})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown")
 	})
 
 	t.Run("sets prompt format", func(t *testing.T) {
@@ -266,24 +260,6 @@ func TestRunConfigSet(t *testing.T) {
 		assert.Equal(t, "green", cfg.PromptColor)
 	})
 
-	t.Run("toggles encryption_enabled", func(t *testing.T) {
-		err := runConfigSet(configSetCmd, []string{"encryption_enabled", "true"})
-		assert.NoError(t, err)
-
-		// Verify it was saved
-		cfg, err := config.LoadConfig()
-		require.NoError(t, err)
-		assert.True(t, cfg.EncryptionEnabled)
-
-		// Toggle back
-		err = runConfigSet(configSetCmd, []string{"encryption_enabled", "false"})
-		assert.NoError(t, err)
-
-		cfg, err = config.LoadConfig()
-		require.NoError(t, err)
-		assert.False(t, cfg.EncryptionEnabled)
-	})
-
 	t.Run("toggles color_output", func(t *testing.T) {
 		err := runConfigSet(configSetCmd, []string{"color_output", "false"})
 		assert.NoError(t, err)
@@ -302,6 +278,25 @@ func TestRunConfigSet(t *testing.T) {
 		cfg, err := config.LoadConfig()
 		require.NoError(t, err)
 		assert.False(t, cfg.EnablePromptIntegration)
+	})
+
+	t.Run("toggles backup_before_switch", func(t *testing.T) {
+		// Set to false
+		err := runConfigSet(configSetCmd, []string{"backup_before_switch", "false"})
+		assert.NoError(t, err)
+
+		// Verify it was saved
+		cfg, err := config.LoadConfig()
+		require.NoError(t, err)
+		assert.False(t, cfg.BackupBeforeSwitch)
+
+		// Set back to true
+		err = runConfigSet(configSetCmd, []string{"backup_before_switch", "true"})
+		assert.NoError(t, err)
+
+		cfg, err = config.LoadConfig()
+		require.NoError(t, err)
+		assert.True(t, cfg.BackupBeforeSwitch)
 	})
 }
 
@@ -382,9 +377,9 @@ func TestConfigIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		// Check some default values
-		assert.Equal(t, "info", cfg.LogLevel)
+		assert.Equal(t, "warn", cfg.LogLevel)
 		assert.Equal(t, 10, cfg.BackupRetention)
-		assert.Equal(t, "vim", cfg.DefaultEditor)
 		assert.Equal(t, "true", cfg.AutoSaveBeforeSwitch)
+		assert.True(t, cfg.ColorOutput)
 	})
 }

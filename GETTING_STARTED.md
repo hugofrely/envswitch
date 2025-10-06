@@ -100,6 +100,12 @@ go test -cover ./...
 
 # Run tests with verbose output
 go test -v ./...
+
+# Run specific package tests
+go test ./cmd -v
+
+# Run with race detector
+make test-race
 ```
 
 ### Code Quality

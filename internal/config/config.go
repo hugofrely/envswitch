@@ -15,8 +15,8 @@ type Config struct {
 	// Behavior settings
 	AutoSaveBeforeSwitch string `yaml:"auto_save_before_switch"` // "true" | "false" | "prompt"
 	VerifyAfterSwitch    bool   `yaml:"verify_after_switch"`
+	BackupBeforeSwitch   bool   `yaml:"backup_before_switch"`
 	BackupRetention      int    `yaml:"backup_retention"`
-	DefaultEditor        string `yaml:"default_editor"`
 
 	// Shell integration
 	EnablePromptIntegration bool   `yaml:"enable_prompt_integration"`
@@ -27,19 +27,8 @@ type Config struct {
 	LogLevel string `yaml:"log_level"` // debug | info | warn | error
 	LogFile  string `yaml:"log_file"`
 
-	// Security
-	EncryptionEnabled    bool     `yaml:"encryption_enabled"`
-	EncryptionUseKeyring bool     `yaml:"encryption_use_keyring"`
-	ExcludePatterns      []string `yaml:"exclude_patterns"`
-
 	// Tools
 	ExcludeTools []string `yaml:"exclude_tools"`
-
-	// Sync
-	AutoSync     bool   `yaml:"auto_sync"`
-	SyncProvider string `yaml:"sync_provider"` // git | remote
-	SyncRepo     string `yaml:"sync_repo"`
-	SyncServer   string `yaml:"sync_server"`
 
 	// UI
 	ColorOutput    bool `yaml:"color_output"`
@@ -53,21 +42,14 @@ func DefaultConfig() *Config {
 		Version:                 "1.0",
 		AutoSaveBeforeSwitch:    "true",
 		VerifyAfterSwitch:       false,
+		BackupBeforeSwitch:      true,
 		BackupRetention:         10,
-		DefaultEditor:           "vim",
 		EnablePromptIntegration: true,
 		PromptFormat:            "({name})",
 		PromptColor:             "blue",
-		LogLevel:                "info",
+		LogLevel:                "warn",
 		LogFile:                 filepath.Join(home, ".envswitch", "envswitch.log"),
-		EncryptionEnabled:       false,
-		EncryptionUseKeyring:    true,
-		ExcludePatterns:         []string{"**/*.log", "**/*.tmp"},
 		ExcludeTools:            []string{},
-		AutoSync:                false,
-		SyncProvider:            "",
-		SyncRepo:                "",
-		SyncServer:              "",
 		ColorOutput:             true,
 		ShowTimestamps:          true,
 	}
@@ -130,10 +112,10 @@ func (c *Config) Get(key string) (interface{}, error) {
 		return c.AutoSaveBeforeSwitch, nil
 	case "verify_after_switch":
 		return c.VerifyAfterSwitch, nil
+	case "backup_before_switch":
+		return c.BackupBeforeSwitch, nil
 	case "backup_retention":
 		return c.BackupRetention, nil
-	case "default_editor":
-		return c.DefaultEditor, nil
 	case "enable_prompt_integration":
 		return c.EnablePromptIntegration, nil
 	case "prompt_format":
@@ -144,10 +126,6 @@ func (c *Config) Get(key string) (interface{}, error) {
 		return c.LogLevel, nil
 	case "log_file":
 		return c.LogFile, nil
-	case "encryption_enabled":
-		return c.EncryptionEnabled, nil
-	case "encryption_use_keyring":
-		return c.EncryptionUseKeyring, nil
 	case "color_output":
 		return c.ColorOutput, nil
 	case "show_timestamps":
@@ -164,10 +142,10 @@ func (c *Config) Set(key string, value interface{}) error {
 		return c.setAutoSaveBeforeSwitch(value)
 	case "verify_after_switch":
 		return c.setBoolValue(&c.VerifyAfterSwitch, value, key)
+	case "backup_before_switch":
+		return c.setBoolValue(&c.BackupBeforeSwitch, value, key)
 	case "backup_retention":
 		return c.setIntValue(&c.BackupRetention, value, key)
-	case "default_editor":
-		return c.setStringValue(&c.DefaultEditor, value, key)
 	case "enable_prompt_integration":
 		return c.setBoolValue(&c.EnablePromptIntegration, value, key)
 	case "prompt_format":
@@ -176,10 +154,10 @@ func (c *Config) Set(key string, value interface{}) error {
 		return c.setStringValue(&c.PromptColor, value, key)
 	case "log_level":
 		return c.setLogLevel(value)
-	case "encryption_enabled":
-		return c.setBoolValue(&c.EncryptionEnabled, value, key)
 	case "color_output":
 		return c.setBoolValue(&c.ColorOutput, value, key)
+	case "show_timestamps":
+		return c.setBoolValue(&c.ShowTimestamps, value, key)
 	default:
 		return fmt.Errorf("unknown or read-only config key: %s", key)
 	}

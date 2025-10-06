@@ -12,6 +12,8 @@ import (
 	"github.com/hugofrely/envswitch/pkg/environment"
 )
 
+const gzipExtension = ".gz"
+
 // Archive represents an archived environment
 type Archive struct {
 	Path        string
@@ -156,7 +158,7 @@ func ListArchives() ([]*Archive, error) {
 		}
 
 		// Only include .tar.gz files
-		if filepath.Ext(entry.Name()) != ".gz" {
+		if filepath.Ext(entry.Name()) != gzipExtension {
 			continue
 		}
 
