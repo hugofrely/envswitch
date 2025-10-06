@@ -1,442 +1,167 @@
 # EnvSwitch Plugin System
 
-The EnvSwitch plugin system allows you to extend functionality by adding support for additional tools beyond the built-in ones (gcloud, kubectl, aws, docker, git).
+Les plugins permettent d'ajouter le support de nouveaux outils à EnvSwitch (en plus de gcloud, kubectl, aws, docker, git).
 
-## Table of Contents
+## Table des matières
 
-- [Overview](#overview)
-- [Plugin Architecture](#plugin-architecture)
-- [Creating a Plugin](#creating-a-plugin)
-- [Plugin Manifest](#plugin-manifest)
-- [Implementing the Plugin Interface](#implementing-the-plugin-interface)
-- [Installing and Managing Plugins](#installing-and-managing-plugins)
-- [Example: Terraform Plugin](#example-terraform-plugin)
-- [Best Practices](#best-practices)
-- [Testing Your Plugin](#testing-your-plugin)
+- [Vue d'ensemble](#vue-densemble)
+- [Architecture d'un plugin](#architecture-dun-plugin)
+- [Créer un plugin simple](#créer-un-plugin-simple)
+- [Exemple complet: Plugin NPM](#exemple-complet-plugin-npm)
+- [Installer et gérer les plugins](#installer-et-gérer-les-plugins)
+- [Structure du manifest](#structure-du-manifest)
+- [Tester votre plugin](#tester-votre-plugin)
 
 ---
 
-## Overview
+## Vue d'ensemble
 
-Plugins allow you to:
+Un plugin EnvSwitch est simplement:
 
-- Add support for new tools (e.g., Terraform, Ansible, Helm)
-- Capture and restore tool-specific configurations
-- Integrate with EnvSwitch's environment switching workflow
-- Share custom tool integrations with the community
+1. Un dossier avec un fichier `plugin.yaml`
+2. Le fichier décrit quel outil le plugin supporte
+3. Le plugin capture et restaure la configuration de l'outil
 
-**Key Concepts:**
-
-- **Plugin**: A directory containing a manifest and implementation
-- **Manifest**: A `plugin.yaml` file describing the plugin
-- **Tool Interface**: The Go interface plugins must implement
-- **Snapshot/Restore**: Core operations for capturing and restoring tool state
-
----
-
-## Plugin Architecture
-
+**Où sont stockés les plugins:**
 ```
-~/.envswitch/
-├── plugins/
-│   ├── terraform/
-│   │   ├── plugin.yaml       # Plugin manifest
-│   │   └── ...               # Plugin files
-│   ├── ansible/
-│   │   ├── plugin.yaml
-│   │   └── ...
-│   └── custom-tool/
-│       ├── plugin.yaml
-│       └── ...
-```
-
-**Plugin Lifecycle:**
-
-1. **Installation**: Copy plugin to `~/.envswitch/plugins/<plugin-name>`
-2. **Discovery**: EnvSwitch reads `plugin.yaml` to understand the plugin
-3. **Initialization**: Plugin is loaded when the tool is needed
-4. **Snapshot**: Capture tool state during environment save
-5. **Restore**: Restore tool state during environment switch
-
----
-
-## Creating a Plugin
-
-### Step 1: Create Plugin Directory
-
-```bash
-mkdir my-plugin
-cd my-plugin
-```
-
-### Step 2: Create Plugin Manifest
-
-Create `plugin.yaml`:
-
-```yaml
-metadata:
-  name: my-tool
-  version: 1.0.0
-  description: Support for My Tool
-  author: Your Name
-  homepage: https://github.com/yourusername/envswitch-my-tool
-  license: MIT
-  tool_name: my-tool
-  tags:
-    - devops
-    - cloud
-```
-
-### Step 3: Implement Plugin Logic
-
-Plugins must implement the `Plugin` interface defined in `pkg/plugin/plugin.go`:
-
-```go
-type Plugin interface {
-    Name() string
-    Version() string
-    Description() string
-    Initialize() error
-    Snapshot(destPath string) error
-    Restore(sourcePath string) error
-    Validate(snapshotPath string) error
-    IsInstalled() bool
-    GetMetadata() (map[string]interface{}, error)
-}
-```
-
-**Alternative Approach (Simpler):**
-
-Plugins can also implement the `Tool` interface from `pkg/tools/tool.go`, which is simpler:
-
-```go
-type Tool interface {
-    Name() string
-    IsInstalled() bool
-    Snapshot(snapshotPath string) error
-    Restore(snapshotPath string) error
-    GetMetadata() (map[string]interface{}, error)
-    ValidateSnapshot(snapshotPath string) error
-    Diff(snapshotPath string) ([]Change, error)
-}
+~/.envswitch/plugins/
+├── npm/
+│   └── plugin.yaml
+├── terraform/
+│   └── plugin.yaml
+└── ansible/
+    └── plugin.yaml
 ```
 
 ---
 
-## Plugin Manifest
+## Architecture d'un plugin
 
-The `plugin.yaml` file contains metadata about your plugin.
+### Plugin simple (YAML seulement)
 
-### Required Fields
-
-```yaml
-metadata:
-  name: my-plugin           # Unique plugin identifier (lowercase, hyphens)
-  version: 1.0.0           # Semantic version
-  tool_name: my-tool       # Name of the tool this plugin supports
+```
+npm-plugin/
+├── plugin.yaml          # Manifest (obligatoire)
+├── README.md           # Documentation
+└── LICENSE             # Licence (optionnel)
 ```
 
-### Optional Fields
-
-```yaml
-metadata:
-  description: Brief description of what this plugin does
-  author: Your Name or Organization
-  homepage: https://github.com/username/plugin-repo
-  license: MIT
-  tags:
-    - cloud
-    - infrastructure
-    - deployment
-```
-
-### Example: Terraform Plugin Manifest
-
-```yaml
-metadata:
-  name: terraform
-  version: 1.0.0
-  description: Terraform workspace and state management
-  author: EnvSwitch Community
-  homepage: https://github.com/envswitch/terraform-plugin
-  license: MIT
-  tool_name: terraform
-  tags:
-    - terraform
-    - infrastructure
-    - iac
-```
-
----
-
-## Implementing the Plugin Interface
-
-Here's a complete example of a Terraform plugin implementation:
-
-### terraform_plugin.go
-
-```go
-package main
-
-import (
-    "fmt"
-    "os"
-    "os/exec"
-    "path/filepath"
-    "io"
-)
-
-type TerraformPlugin struct {
-    ConfigDir string // ~/.terraform.d
-}
-
-func NewTerraformPlugin() *TerraformPlugin {
-    home, _ := os.UserHomeDir()
-    return &TerraformPlugin{
-        ConfigDir: filepath.Join(home, ".terraform.d"),
-    }
-}
-
-func (t *TerraformPlugin) Name() string {
-    return "terraform"
-}
-
-func (t *TerraformPlugin) Version() string {
-    return "1.0.0"
-}
-
-func (t *TerraformPlugin) Description() string {
-    return "Terraform workspace and state management"
-}
-
-func (t *TerraformPlugin) Initialize() error {
-    // Check if Terraform is installed
-    if !t.IsInstalled() {
-        return fmt.Errorf("terraform is not installed")
-    }
-    return nil
-}
-
-func (t *TerraformPlugin) IsInstalled() bool {
-    _, err := exec.LookPath("terraform")
-    return err == nil
-}
-
-func (t *TerraformPlugin) Snapshot(destPath string) error {
-    // Create destination directory
-    if err := os.MkdirAll(destPath, 0755); err != nil {
-        return fmt.Errorf("failed to create snapshot directory: %w", err)
-    }
-
-    // Copy ~/.terraform.d directory
-    if _, err := os.Stat(t.ConfigDir); !os.IsNotExist(err) {
-        if err := copyDir(t.ConfigDir, filepath.Join(destPath, ".terraform.d")); err != nil {
-            return fmt.Errorf("failed to copy terraform config: %w", err)
-        }
-    }
-
-    // Get current workspace (if in a terraform directory)
-    workspace, _ := t.getCurrentWorkspace()
-    if workspace != "" {
-        metadataFile := filepath.Join(destPath, "workspace.txt")
-        if err := os.WriteFile(metadataFile, []byte(workspace), 0644); err != nil {
-            return fmt.Errorf("failed to save workspace: %w", err)
-        }
-    }
-
-    return nil
-}
-
-func (t *TerraformPlugin) Restore(sourcePath string) error {
-    // Restore ~/.terraform.d
-    terraformDir := filepath.Join(sourcePath, ".terraform.d")
-    if _, err := os.Stat(terraformDir); !os.IsNotExist(err) {
-        // Remove existing config
-        if err := os.RemoveAll(t.ConfigDir); err != nil {
-            return fmt.Errorf("failed to remove existing config: %w", err)
-        }
-
-        // Copy from snapshot
-        if err := copyDir(terraformDir, t.ConfigDir); err != nil {
-            return fmt.Errorf("failed to restore terraform config: %w", err)
-        }
-    }
-
-    // Restore workspace (if saved)
-    workspaceFile := filepath.Join(sourcePath, "workspace.txt")
-    if _, err := os.Stat(workspaceFile); !os.IsNotExist(err) {
-        workspace, err := os.ReadFile(workspaceFile)
-        if err != nil {
-            return fmt.Errorf("failed to read workspace: %w", err)
-        }
-        // Note: Workspace switching would need to be done in the actual terraform directory
-        fmt.Printf("Workspace: %s\n", string(workspace))
-    }
-
-    return nil
-}
-
-func (t *TerraformPlugin) Validate(snapshotPath string) error {
-    // Check if snapshot directory exists
-    if _, err := os.Stat(snapshotPath); os.IsNotExist(err) {
-        return fmt.Errorf("snapshot path does not exist: %s", snapshotPath)
-    }
-    return nil
-}
-
-func (t *TerraformPlugin) GetMetadata() (map[string]interface{}, error) {
-    metadata := make(map[string]interface{})
-
-    // Get terraform version
-    cmd := exec.Command("terraform", "version", "-json")
-    output, err := cmd.Output()
-    if err == nil {
-        metadata["version_output"] = string(output)
-    }
-
-    // Get current workspace
-    workspace, _ := t.getCurrentWorkspace()
-    if workspace != "" {
-        metadata["workspace"] = workspace
-    }
-
-    return metadata, nil
-}
-
-func (t *TerraformPlugin) getCurrentWorkspace() (string, error) {
-    cmd := exec.Command("terraform", "workspace", "show")
-    output, err := cmd.Output()
-    if err != nil {
-        return "", err
-    }
-    return string(output), nil
-}
-
-// Helper function to copy directories
-func copyDir(src, dst string) error {
-    return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
-        if err != nil {
-            return err
-        }
-
-        relPath, err := filepath.Rel(src, path)
-        if err != nil {
-            return err
-        }
-
-        targetPath := filepath.Join(dst, relPath)
-
-        if info.IsDir() {
-            return os.MkdirAll(targetPath, info.Mode())
-        }
-
-        return copyFile(path, targetPath)
-    })
-}
-
-func copyFile(src, dst string) error {
-    sourceFile, err := os.Open(src)
-    if err != nil {
-        return err
-    }
-    defer sourceFile.Close()
-
-    destFile, err := os.Create(dst)
-    if err != nil {
-        return err
-    }
-    defer destFile.Close()
-
-    _, err = io.Copy(destFile, sourceFile)
-    return err
-}
-```
-
----
-
-## Installing and Managing Plugins
-
-### List Installed Plugins
-
-```bash
-envswitch plugin list
-```
-
-Output:
-```
-Installed plugins:
-
-  • terraform v1.0.0
-    Terraform workspace and state management
-    Tool: terraform
-
-  • ansible v1.0.0
-    Ansible inventory and configuration management
-    Tool: ansible
-
-Total: 2 plugin(s)
-```
-
-### Install a Plugin
-
-```bash
-# Install from a local directory
-envswitch plugin install ./terraform-plugin
-
-# Install from a downloaded archive
-envswitch plugin install ~/downloads/terraform-plugin.tar.gz
-```
-
-Output:
-```
-✅ Plugin 'terraform' v1.0.0 installed successfully
-   Terraform workspace and state management
-```
-
-### View Plugin Info
-
-```bash
-envswitch plugin info terraform
-```
-
-Output:
-```
-Plugin: terraform
-Version: 1.0.0
-Description: Terraform workspace and state management
-Author: EnvSwitch Community
-Homepage: https://github.com/envswitch/terraform-plugin
-License: MIT
-Tool: terraform
-Tags: [terraform infrastructure iac]
-```
-
-### Remove a Plugin
-
-```bash
-envswitch plugin remove terraform
-# or
-envswitch plugin rm terraform
-envswitch plugin uninstall terraform
-```
-
-Output:
-```
-✅ Plugin 'terraform' removed successfully
-```
-
----
-
-## Example: Terraform Plugin
-
-Here's the complete directory structure for a Terraform plugin:
+### Plugin avancé (avec code Go)
 
 ```
 terraform-plugin/
-├── plugin.yaml
-├── terraform_plugin.go
-├── go.mod
+├── plugin.yaml         # Manifest (obligatoire)
+├── main.go            # Point d'entrée
+├── terraform.go       # Implémentation du plugin
+├── go.mod             # Dépendances Go
 ├── go.sum
+├── README.md          # Documentation
+├── LICENSE
+└── examples/          # Exemples d'usage
+    └── example.yaml
+```
+
+### Architecture détaillée d'un plugin complet
+
+```
+my-tool-plugin/
+│
+├── plugin.yaml              # Manifest principal
+│
+├── src/                     # Code source (si plugin avancé)
+│   ├── main.go             # Entry point
+│   ├── plugin.go           # Implémentation Plugin interface
+│   ├── snapshot.go         # Logique de snapshot
+│   ├── restore.go          # Logique de restore
+│   └── utils.go            # Fonctions helpers
+│
+├── tests/                   # Tests
+│   ├── plugin_test.go
+│   └── integration_test.go
+│
+├── examples/                # Exemples et templates
+│   ├── basic/
+│   │   └── config.yaml
+│   └── advanced/
+│       └── config.yaml
+│
+├── docs/                    # Documentation
+│   ├── USAGE.md
+│   └── TROUBLESHOOTING.md
+│
+├── scripts/                 # Scripts utilitaires
+│   ├── install.sh
+│   └── test.sh
+│
+├── go.mod                   # Si plugin Go
+├── go.sum
+├── Makefile                # Commandes de build
+├── README.md               # Documentation principale
+├── LICENSE
+└── .gitignore
+```
+
+### Structure minimale recommandée
+
+Pour démarrer rapidement:
+
+```
+my-plugin/
+├── plugin.yaml       # Obligatoire
+└── README.md        # Recommandé
+```
+
+---
+
+## Créer un plugin simple
+
+### Étape 1: Créer le dossier
+
+```bash
+mkdir npm-plugin
+cd npm-plugin
+```
+
+### Étape 2: Créer le manifest `plugin.yaml`
+
+```yaml
+metadata:
+  name: npm
+  version: 1.0.0
+  description: NPM registry and authentication
+  author: Votre Nom
+  tool_name: npm
+```
+
+### Étape 3: Créer le README.md
+
+```markdown
+# NPM Plugin for EnvSwitch
+
+Capture et restaure la configuration NPM.
+
+## Installation
+
+envswitch plugin install ./npm-plugin
+
+## Ce qui est capturé
+
+- ~/.npmrc (configuration et auth)
+```
+
+C'est tout! Le plugin est prêt à être installé.
+
+---
+
+## Exemple complet: Plugin NPM
+
+Créons un plugin qui capture la configuration NPM (registry, authentification, etc.)
+
+### Structure du projet
+
+```
+npm-plugin/
+├── plugin.yaml
 └── README.md
 ```
 
@@ -444,311 +169,639 @@ terraform-plugin/
 
 ```yaml
 metadata:
+  name: npm
+  version: 1.0.0
+  description: NPM registry and authentication management
+  author: EnvSwitch Community
+  homepage: https://github.com/envswitch/npm-plugin
+  license: MIT
+  tool_name: npm
+  tags:
+    - npm
+    - nodejs
+    - registry
+```
+
+### README.md
+
+```markdown
+# EnvSwitch NPM Plugin
+
+Plugin pour gérer les configurations NPM avec EnvSwitch.
+
+## Installation
+
+git clone https://github.com/username/npm-plugin
+envswitch plugin install ./npm-plugin
+
+## Ce qui est capturé
+
+- `~/.npmrc` - Configuration NPM globale
+- Registry URL
+- Authentification tokens
+- Proxy settings
+
+## Usage
+
+### Créer des environnements
+
+bash
+# Environnement travail
+npm config set registry https://npm.company.com
+npm login
+envswitch create work --from-current
+
+# Environnement personnel
+npm config set registry https://registry.npmjs.org/
+npm login
+envswitch create personal --from-current
+
+
+### Switcher entre environnements
+
+bash
+envswitch switch work      # Registry d'entreprise
+envswitch switch personal  # Registry public
+
+
+## Prérequis
+
+- EnvSwitch v0.1.0+
+- NPM installé
+
+## Support
+
+Ouvrez une issue sur: https://github.com/username/npm-plugin/issues
+```
+
+### Ce que le plugin capture
+
+Le plugin NPM capture automatiquement:
+
+- `~/.npmrc` - Configuration NPM globale
+- Registry URL
+- Authentification tokens
+- Proxy settings
+- Configuration custom
+
+### Exemple de configuration NPM
+
+Voici ce que contient typiquement un `.npmrc`:
+
+```ini
+registry=https://registry.npmjs.org/
+//registry.npmjs.org/:_authToken=npm_xxxxxxxxxxxxx
+@mycompany:registry=https://npm.mycompany.com/
+//npm.mycompany.com/:_authToken=xxxxxxxxxxxxx
+```
+
+### Comment ça fonctionne
+
+Quand vous faites `envswitch switch`:
+
+1. **Snapshot**: EnvSwitch copie `~/.npmrc` dans l'environnement actuel
+2. **Restore**: EnvSwitch restaure le `~/.npmrc` de l'environnement cible
+
+### Cas d'usage réels
+
+**Scénario 1: Travail vs Personnel**
+
+```bash
+# Environnement travail
+cat ~/.npmrc
+# registry=https://npm.company.com
+# //npm.company.com/:_authToken=work_token
+
+envswitch create work --from-current
+
+# Environnement personnel
+npm config set registry https://registry.npmjs.org/
+npm login  # Avec vos credentials personnels
+
+envswitch create personal --from-current
+
+# Maintenant vous pouvez switcher instantanément:
+envswitch switch work      # Registry d'entreprise + auth
+envswitch switch personal  # Registry public + auth perso
+```
+
+**Scénario 2: Multiple clients**
+
+```bash
+# Client A
+npm config set registry https://npm.clientA.com
+npm config set //npm.clientA.com/:_authToken token_A
+envswitch create clientA --from-current
+
+# Client B
+npm config set registry https://npm.clientB.com
+npm config set //npm.clientB.com/:_authToken token_B
+envswitch create clientB --from-current
+
+# Switch facilement entre les clients
+envswitch switch clientA
+envswitch switch clientB
+```
+
+---
+
+## Installer et gérer les plugins
+
+### Lister les plugins installés
+
+```bash
+envswitch plugin list
+```
+
+Exemple de sortie:
+```
+Installed plugins:
+
+  • npm v1.0.0
+    NPM registry and authentication management
+    Tool: npm
+
+  • terraform v1.0.0
+    Terraform workspace management
+    Tool: terraform
+
+Total: 2 plugin(s)
+```
+
+### Installer un plugin
+
+```bash
+# Depuis un dossier local
+envswitch plugin install ./npm-plugin
+
+# Depuis un repo Git
+git clone https://github.com/user/npm-plugin
+envswitch plugin install ./npm-plugin
+```
+
+Sortie:
+```
+✅ Plugin 'npm' v1.0.0 installed successfully
+   NPM registry and authentication management
+```
+
+### Voir les infos d'un plugin
+
+```bash
+envswitch plugin info npm
+```
+
+Sortie:
+```
+Plugin: npm
+Version: 1.0.0
+Description: NPM registry and authentication management
+Author: EnvSwitch Community
+Homepage: https://github.com/envswitch/npm-plugin
+License: MIT
+Tool: npm
+Tags: [npm nodejs registry]
+```
+
+### Supprimer un plugin
+
+```bash
+envswitch plugin remove npm
+```
+
+---
+
+## Structure du manifest
+
+Le fichier `plugin.yaml` contient les métadonnées de votre plugin.
+
+### Champs obligatoires
+
+```yaml
+metadata:
+  name: npm              # Nom unique (lowercase, tirets)
+  version: 1.0.0         # Version sémantique
+  tool_name: npm         # Nom de l'outil
+```
+
+### Champs optionnels
+
+```yaml
+metadata:
+  description: Description courte du plugin
+  author: Votre Nom
+  homepage: https://github.com/user/plugin
+  license: MIT
+  tags:
+    - npm
+    - nodejs
+```
+
+### Exemples de manifests
+
+**Plugin Terraform:**
+```yaml
+metadata:
   name: terraform
   version: 1.0.0
   description: Terraform workspace and state management
-  author: EnvSwitch Community
-  homepage: https://github.com/envswitch/terraform-plugin
-  license: MIT
   tool_name: terraform
+  author: Community
   tags:
     - terraform
-    - infrastructure
     - iac
 ```
 
-### What Gets Captured
-
-The Terraform plugin captures:
-
-1. **~/.terraform.d/** - Terraform CLI configuration
-2. **Current workspace** - Active Terraform workspace name
-3. **Plugin cache** - Downloaded provider plugins (optional)
-
-### What Gets Restored
-
-When switching environments:
-
-1. Terraform configuration is restored
-2. Workspace information is displayed
-3. Plugin cache is restored (if captured)
-
----
-
-## Best Practices
-
-### 1. Configuration Files
-
-- Capture tool-specific configuration directories
-- Examples: `~/.terraform.d`, `~/.ansible`, `~/.helm`
-
-### 2. State Files
-
-- Be careful with state files (they may contain sensitive data)
-- Consider excluding state files or encrypting snapshots
-
-### 3. Credentials
-
-- Never store plaintext credentials in snapshots
-- Use environment variables or credential managers
-- Consider using EnvSwitch's planned encryption feature
-
-### 4. Error Handling
-
-```go
-func (p *MyPlugin) Snapshot(destPath string) error {
-    if !p.IsInstalled() {
-        return fmt.Errorf("tool not installed")
-    }
-
-    if err := os.MkdirAll(destPath, 0755); err != nil {
-        return fmt.Errorf("failed to create snapshot dir: %w", err)
-    }
-
-    // ... snapshot logic
-    return nil
-}
+**Plugin Ansible:**
+```yaml
+metadata:
+  name: ansible
+  version: 1.0.0
+  description: Ansible inventory and vault management
+  tool_name: ansible
+  author: Community
+  tags:
+    - ansible
+    - automation
 ```
 
-### 5. Validation
-
-Always validate snapshots before restoring:
-
-```go
-func (p *MyPlugin) Validate(snapshotPath string) error {
-    if _, err := os.Stat(snapshotPath); os.IsNotExist(err) {
-        return fmt.Errorf("snapshot does not exist")
-    }
-
-    // Check for required files
-    requiredFiles := []string{"config.yaml", "credentials"}
-    for _, file := range requiredFiles {
-        path := filepath.Join(snapshotPath, file)
-        if _, err := os.Stat(path); os.IsNotExist(err) {
-            return fmt.Errorf("missing required file: %s", file)
-        }
-    }
-
-    return nil
-}
-```
-
-### 6. Metadata
-
-Provide useful metadata for debugging:
-
-```go
-func (p *MyPlugin) GetMetadata() (map[string]interface{}, error) {
-    return map[string]interface{}{
-        "version":      p.getToolVersion(),
-        "config_path":  p.ConfigPath,
-        "last_updated": time.Now().Format(time.RFC3339),
-    }, nil
-}
+**Plugin Helm:**
+```yaml
+metadata:
+  name: helm
+  version: 1.0.0
+  description: Helm repositories and configuration
+  tool_name: helm
+  author: Community
+  tags:
+    - helm
+    - kubernetes
 ```
 
 ---
 
-## Testing Your Plugin
+## Tester votre plugin
 
-### Manual Testing
+### Test manuel rapide
 
-1. **Create test environment:**
+1. **Créer un environnement test:**
 ```bash
-envswitch create test-plugin --empty
+envswitch create test-npm --empty
 ```
 
-2. **Configure your tool:**
+2. **Configurer NPM:**
 ```bash
-# Set up your tool's configuration
-my-tool config set ...
+npm config set registry https://test-registry.com
+echo "Test config" >> ~/.npmrc
 ```
 
-3. **Enable plugin in environment:**
-```bash
-vim ~/.envswitch/environments/test-plugin/metadata.yaml
-```
+3. **Activer le plugin:**
 
-Add:
+Éditer `~/.envswitch/environments/test-npm/metadata.yaml`:
 ```yaml
 tools:
-  my-tool:
+  npm:
     enabled: true
     snapshot_path: ""
 ```
 
-4. **Test snapshot:**
+4. **Tester le snapshot:**
 ```bash
-envswitch switch test-plugin
+envswitch switch test-npm
 ```
 
-5. **Verify snapshot was created:**
+5. **Vérifier le snapshot:**
 ```bash
-ls ~/.envswitch/environments/test-plugin/snapshots/my-tool/
+ls ~/.envswitch/environments/test-npm/snapshots/npm/
+cat ~/.envswitch/environments/test-npm/snapshots/npm/.npmrc
 ```
 
-6. **Test restore:**
+6. **Tester la restauration:**
 ```bash
-# Modify tool configuration
-my-tool config set something different
+# Modifier la config
+npm config set registry https://different-registry.com
 
-# Switch back
-envswitch switch test-plugin
+# Switcher pour restaurer
+envswitch switch test-npm
 
-# Verify configuration was restored
-my-tool config get
+# Vérifier que c'est restauré
+npm config get registry
+# Devrait afficher: https://test-registry.com
 ```
 
-### Automated Testing
+---
 
-Create a test file `plugin_test.go`:
+## Fichiers capturés par outil
 
+Voici ce que les plugins typiques capturent:
+
+### NPM
+- `~/.npmrc` - Configuration globale
+
+### Yarn
+- `~/.yarnrc` - Configuration Yarn 1.x
+- `~/.yarnrc.yml` - Configuration Yarn 2+
+
+### Python/Pip
+- `~/.pip/pip.conf` - Configuration pip
+- `~/.pypirc` - Credentials PyPI
+
+### Terraform
+- `~/.terraform.d/` - Configuration CLI
+- `~/.terraformrc` - Credentials
+
+### Ansible
+- `~/.ansible.cfg` - Configuration
+- `~/.ansible/` - Collections, plugins
+
+### Helm
+- `~/.config/helm/` - Configuration
+- `~/.cache/helm/` - Repository cache
+
+### Git
+- `~/.gitconfig` - Configuration globale
+- `~/.git-credentials` - Credentials
+
+### Docker
+- `~/.docker/config.json` - Configuration et auth
+
+### Maven
+- `~/.m2/settings.xml` - Configuration et repositories
+
+### Gradle
+- `~/.gradle/gradle.properties` - Configuration
+
+---
+
+## Créer un plugin avancé (optionnel)
+
+Si vous avez besoin de logique custom (par exemple, exécuter des commandes), vous pouvez créer un plugin en Go.
+
+### Structure complète avec Go
+
+```
+npm-plugin/
+├── plugin.yaml           # Manifest
+├── main.go              # Entry point
+├── plugin.go            # Implémentation
+├── go.mod
+├── go.sum
+├── README.md
+├── LICENSE
+└── tests/
+    └── plugin_test.go
+```
+
+### Exemple minimal en Go
+
+**main.go:**
 ```go
 package main
 
 import (
     "os"
     "path/filepath"
-    "testing"
+    "os/exec"
 )
 
-func TestTerraformPlugin_Snapshot(t *testing.T) {
-    plugin := NewTerraformPlugin()
+type NPMPlugin struct {
+    ConfigFile string // ~/.npmrc
+}
 
-    tempDir := t.TempDir()
-    snapshotPath := filepath.Join(tempDir, "snapshot")
-
-    err := plugin.Snapshot(snapshotPath)
-    if err != nil {
-        t.Fatalf("Snapshot failed: %v", err)
-    }
-
-    // Verify snapshot was created
-    if _, err := os.Stat(snapshotPath); os.IsNotExist(err) {
-        t.Error("Snapshot directory was not created")
+func NewNPMPlugin() *NPMPlugin {
+    home, _ := os.UserHomeDir()
+    return &NPMPlugin{
+        ConfigFile: filepath.Join(home, ".npmrc"),
     }
 }
 
-func TestTerraformPlugin_Restore(t *testing.T) {
-    plugin := NewTerraformPlugin()
-
-    tempDir := t.TempDir()
-    snapshotPath := filepath.Join(tempDir, "snapshot")
-
-    // Create snapshot first
-    err := plugin.Snapshot(snapshotPath)
-    if err != nil {
-        t.Fatalf("Snapshot failed: %v", err)
-    }
-
-    // Test restore
-    err = plugin.Restore(snapshotPath)
-    if err != nil {
-        t.Fatalf("Restore failed: %v", err)
-    }
+func (n *NPMPlugin) Name() string {
+    return "npm"
 }
 
-func TestTerraformPlugin_IsInstalled(t *testing.T) {
-    plugin := NewTerraformPlugin()
+func (n *NPMPlugin) IsInstalled() bool {
+    _, err := exec.LookPath("npm")
+    return err == nil
+}
 
-    // This will depend on your test environment
-    installed := plugin.IsInstalled()
-    t.Logf("Terraform installed: %v", installed)
+// Snapshot copie ~/.npmrc vers le snapshot
+func (n *NPMPlugin) Snapshot(destPath string) error {
+    os.MkdirAll(destPath, 0755)
+
+    // Copier .npmrc
+    data, err := os.ReadFile(n.ConfigFile)
+    if err != nil {
+        return err
+    }
+
+    return os.WriteFile(
+        filepath.Join(destPath, ".npmrc"),
+        data,
+        0644,
+    )
+}
+
+// Restore restaure ~/.npmrc depuis le snapshot
+func (n *NPMPlugin) Restore(sourcePath string) error {
+    snapshotFile := filepath.Join(sourcePath, ".npmrc")
+
+    data, err := os.ReadFile(snapshotFile)
+    if err != nil {
+        return err
+    }
+
+    return os.WriteFile(n.ConfigFile, data, 0644)
 }
 ```
 
-Run tests:
-```bash
-go test -v
+**go.mod:**
+```go
+module github.com/username/npm-plugin
+
+go 1.21
 ```
+
+Mais dans la plupart des cas, un simple `plugin.yaml` suffit!
 
 ---
 
-## Plugin Distribution
+## Exemples de structure de projets réels
 
-### GitHub Repository
+### 1. Plugin simple (NPM)
 
-Create a repository for your plugin:
+```
+npm-plugin/
+├── plugin.yaml
+└── README.md
+```
+
+**Usage:** Capture automatique de `~/.npmrc`
+
+### 2. Plugin moyen (Terraform)
 
 ```
 terraform-plugin/
 ├── plugin.yaml
-├── terraform_plugin.go
+├── README.md
+├── LICENSE
+└── examples/
+    └── terraform.tfvars.example
+```
+
+**Usage:** Capture `~/.terraform.d/` + doc détaillée
+
+### 3. Plugin avancé (Custom Tool)
+
+```
+custom-plugin/
+├── plugin.yaml
+├── main.go
+├── plugin.go
+├── snapshot.go
+├── restore.go
+├── utils.go
 ├── go.mod
 ├── go.sum
 ├── README.md
 ├── LICENSE
-└── examples/
-    └── config.yaml
+├── Makefile
+├── tests/
+│   ├── plugin_test.go
+│   └── integration_test.go
+├── examples/
+│   ├── basic.yaml
+│   └── advanced.yaml
+└── docs/
+    ├── USAGE.md
+    └── TROUBLESHOOTING.md
 ```
 
-### Installation Instructions
+**Usage:** Logique custom en Go pour outils complexes
 
-In your README.md:
+---
 
-```markdown
-# EnvSwitch Terraform Plugin
+## Partager votre plugin
 
-Support for Terraform workspace and state management in EnvSwitch.
+### Sur GitHub
+
+1. **Créer un repo:**
+```bash
+mkdir npm-plugin
+cd npm-plugin
+
+# Créer les fichiers
+cat > plugin.yaml << 'EOF'
+metadata:
+  name: npm
+  version: 1.0.0
+  description: NPM registry and authentication
+  tool_name: npm
+  author: Your Name
+  homepage: https://github.com/yourusername/npm-plugin
+  license: MIT
+EOF
+
+cat > README.md << 'EOF'
+# NPM Plugin for EnvSwitch
+
+Capture et restaure la configuration NPM.
 
 ## Installation
+git clone https://github.com/yourusername/npm-plugin
+envswitch plugin install ./npm-plugin
+EOF
 
-git clone https://github.com/yourusername/envswitch-terraform
-cd envswitch-terraform
-envswitch plugin install .
+git init
+git add .
+git commit -m "Initial commit"
+git remote add origin https://github.com/yourusername/npm-plugin
+git push -u origin main
+```
 
-## Usage
-
-The plugin automatically captures:
-- Terraform CLI configuration (~/.terraform.d)
-- Current workspace information
-- Plugin cache
-
-## Requirements
-
-- EnvSwitch v0.1.0 or later
-- Terraform CLI installed
+2. **Les utilisateurs peuvent installer:**
+```bash
+git clone https://github.com/yourusername/npm-plugin
+envswitch plugin install ./npm-plugin
 ```
 
 ---
 
-## Future Enhancements
+## Exemples de plugins utiles
 
-The plugin system is evolving. Planned features include:
+Voici des idées de plugins que vous pourriez créer:
 
-- **Hot reloading**: Load plugins without restarting
-- **Plugin marketplace**: Central repository of community plugins
-- **Binary plugins**: Support for compiled binary plugins
-- **Hook support**: Pre/post snapshot and restore hooks
-- **Dependencies**: Plugins can depend on other plugins
-- **Configuration UI**: Manage plugin settings via CLI
+### Outils de développement
+- **npm** - Registries et auth ✅ (exemple ci-dessus)
+- **yarn** - Configuration yarn
+- **pnpm** - Configuration pnpm
+- **pip** - Python package index
+- **gem** - Ruby gems
+- **cargo** - Rust packages
+- **composer** - PHP packages
+
+### Infrastructure
+- **terraform** - Workspaces et state
+- **ansible** - Inventories et vaults
+- **pulumi** - Stacks et configs
+- **CDK** - AWS CDK configuration
+
+### Cloud & Kubernetes
+- **helm** - Repositories et charts
+- **kustomize** - Configuration
+- **eksctl** - EKS clusters
+
+### Autres
+- **ssh** - SSH keys et config
+- **gpg** - GPG keys
+- **vscode** - Settings et extensions
+- **postgres** - psql configuration
 
 ---
 
-## Contributing Plugins
+## Support et contribution
 
-We encourage community contributions! To share your plugin:
+### Besoin d'aide?
 
-1. Create a GitHub repository for your plugin
-2. Follow the structure and best practices outlined above
-3. Add comprehensive documentation
-4. Submit to the EnvSwitch plugin registry (coming soon)
-
----
-
-## Getting Help
-
-- **Documentation**: [EnvSwitch README](../README.md)
+- **Documentation**: [README principal](../README.md)
 - **Issues**: [GitHub Issues](https://github.com/hugofrely/envswitch/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/hugofrely/envswitch/discussions)
 
+### Contribuer
+
+Votre plugin pourrait aider d'autres développeurs! N'hésitez pas à:
+
+1. Créer un repo GitHub pour votre plugin
+2. Documenter l'installation et l'usage
+3. Partager le lien dans les discussions EnvSwitch
+
 ---
 
-## Examples
+## FAQ
 
-See the [examples directory](../examples/plugins/) for complete plugin examples including:
+**Q: Est-ce que je dois savoir Go pour créer un plugin?**
 
-- Terraform plugin
-- Ansible plugin
-- Helm plugin
-- Custom tool plugin template
+Non! Un simple fichier `plugin.yaml` suffit pour la plupart des cas. EnvSwitch gère automatiquement la copie des fichiers de configuration.
+
+**Q: Combien de temps ça prend pour créer un plugin?**
+
+5 minutes pour un plugin simple (juste le YAML). Le plugin NPM ci-dessus peut être créé en moins de 5 minutes.
+
+**Q: Quelle est la structure minimale?**
+
+Juste un fichier `plugin.yaml` avec les 3 champs obligatoires (name, version, tool_name).
+
+**Q: Est-ce que les plugins peuvent contenir des credentials?**
+
+Oui, mais faites attention. Les snapshots contiennent vos fichiers de config incluant les tokens. C'est justement le but (garder vos auth séparées par environnement).
+
+**Q: Comment contribuer un plugin officiel?**
+
+Créez votre plugin, testez-le, puis ouvrez une issue dans le repo EnvSwitch pour proposer de l'ajouter aux plugins officiels.
+
+**Q: Les plugins fonctionnent sur tous les OS?**
+
+Oui, tant que l'outil lui-même est supporté sur cet OS.
+
+**Q: Puis-je avoir plusieurs versions d'un plugin?**
+
+Pour l'instant non, un seul plugin par outil. Mais vous pouvez mettre à jour un plugin existant.
