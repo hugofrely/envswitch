@@ -117,4 +117,109 @@ func TestRunCreate(t *testing.T) {
 			assert.False(t, env.Tools[tool].Enabled, "Tool %s should be disabled", tool)
 		}
 	})
+
+	t.Run("creates environment from existing environment", func(t *testing.T) {
+		// Create source environment with some data
+		sourceEnvPath := filepath.Join(envDir, "source-env")
+		err := os.MkdirAll(sourceEnvPath, 0755)
+		require.NoError(t, err)
+
+		// Create snapshots directory with some files
+		sourceSnapshots := filepath.Join(sourceEnvPath, "snapshots")
+		err = os.MkdirAll(filepath.Join(sourceSnapshots, "gcloud"), 0755)
+		require.NoError(t, err)
+		err = os.MkdirAll(filepath.Join(sourceSnapshots, "kubectl"), 0755)
+		require.NoError(t, err)
+
+		// Create some test files in snapshots
+		testFile1 := filepath.Join(sourceSnapshots, "gcloud", "config.yaml")
+		err = os.WriteFile(testFile1, []byte("test-config"), 0644)
+		require.NoError(t, err)
+
+		testFile2 := filepath.Join(sourceSnapshots, "kubectl", "config")
+		err = os.WriteFile(testFile2, []byte("test-kube-config"), 0644)
+		require.NoError(t, err)
+
+		// Create env-vars.env file
+		envVarsContent := "# Test env vars\nTEST_VAR=value123\n"
+		err = os.WriteFile(filepath.Join(sourceEnvPath, "env-vars.env"), []byte(envVarsContent), 0644)
+		require.NoError(t, err)
+
+		// Create source environment metadata
+		sourceEnv := &environment.Environment{
+			Name:        "source-env",
+			Description: "Source environment",
+			Path:        sourceEnvPath,
+			Tools: map[string]environment.ToolConfig{
+				"gcloud": {
+					Enabled:      true,
+					SnapshotPath: "snapshots/gcloud",
+					Metadata: map[string]interface{}{
+						"project": "test-project",
+					},
+				},
+				"kubectl": {
+					Enabled:      true,
+					SnapshotPath: "snapshots/kubectl",
+					Metadata: map[string]interface{}{
+						"context": "test-context",
+					},
+				},
+			},
+			EnvVars: map[string]string{
+				"TEST_VAR": "value123",
+			},
+		}
+		err = sourceEnv.Save()
+		require.NoError(t, err)
+
+		// Now clone from source environment
+		createFrom = "source-env"
+		defer func() { createFrom = "" }()
+
+		err = runCreate(createCmd, []string{"cloned-env"})
+		require.NoError(t, err)
+
+		// Verify cloned environment
+		clonedEnv, err := environment.LoadEnvironment("cloned-env")
+		require.NoError(t, err)
+
+		// Check that tools were copied
+		assert.Equal(t, 2, len(clonedEnv.Tools))
+		assert.True(t, clonedEnv.Tools["gcloud"].Enabled)
+		assert.True(t, clonedEnv.Tools["kubectl"].Enabled)
+		assert.Equal(t, "test-project", clonedEnv.Tools["gcloud"].Metadata["project"])
+		assert.Equal(t, "test-context", clonedEnv.Tools["kubectl"].Metadata["context"])
+
+		// Check that env vars were copied
+		assert.Equal(t, "value123", clonedEnv.EnvVars["TEST_VAR"])
+
+		// Verify snapshot files were copied
+		clonedPath := filepath.Join(envDir, "cloned-env")
+		assert.FileExists(t, filepath.Join(clonedPath, "snapshots", "gcloud", "config.yaml"))
+		assert.FileExists(t, filepath.Join(clonedPath, "snapshots", "kubectl", "config"))
+
+		// Verify file contents
+		content, err := os.ReadFile(filepath.Join(clonedPath, "snapshots", "gcloud", "config.yaml"))
+		require.NoError(t, err)
+		assert.Equal(t, "test-config", string(content))
+
+		content, err = os.ReadFile(filepath.Join(clonedPath, "snapshots", "kubectl", "config"))
+		require.NoError(t, err)
+		assert.Equal(t, "test-kube-config", string(content))
+
+		// Verify env-vars.env was copied
+		envVarsContent2, err := os.ReadFile(filepath.Join(clonedPath, "env-vars.env"))
+		require.NoError(t, err)
+		assert.Equal(t, envVarsContent, string(envVarsContent2))
+	})
+
+	t.Run("fails when cloning from non-existent environment", func(t *testing.T) {
+		createFrom = "non-existent"
+		defer func() { createFrom = "" }()
+
+		err := runCreate(createCmd, []string{"should-fail"})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "does not exist")
+	})
 }
