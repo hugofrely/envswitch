@@ -11,6 +11,10 @@ import (
 	"github.com/hugofrely/envswitch/pkg/environment"
 )
 
+const (
+	gzipExt = ".gz"
+)
+
 func TestRunDelete(t *testing.T) {
 	// Create a temporary directory for testing
 	tempHome := t.TempDir()
@@ -118,5 +122,101 @@ func TestRunDelete(t *testing.T) {
 		// Verify all deleted
 		_, err = os.Stat(env.Path)
 		assert.True(t, os.IsNotExist(err))
+	})
+
+	t.Run("archives environment before deletion", func(t *testing.T) {
+		// Create environment
+		env := &environment.Environment{
+			Name: "to-archive",
+			Path: filepath.Join(envDir, "to-archive"),
+		}
+		err := os.MkdirAll(env.Path, 0755)
+		require.NoError(t, err)
+		err = env.Save()
+		require.NoError(t, err)
+
+		// Create test file
+		testFile := filepath.Join(env.Path, "test.txt")
+		err = os.WriteFile(testFile, []byte("test content"), 0644)
+		require.NoError(t, err)
+
+		// Delete with archiving
+		deleteForce = true
+		deleteNoArchive = false
+		defer func() {
+			deleteForce = false
+			deleteNoArchive = false
+		}()
+
+		err = runDelete(deleteCmd, []string{"to-archive"})
+		require.NoError(t, err)
+
+		// Verify environment is deleted
+		_, err = os.Stat(env.Path)
+		assert.True(t, os.IsNotExist(err))
+
+		// Verify archive was created
+		archiveDir := filepath.Join(envswitchDir, "archives")
+		entries, err := os.ReadDir(archiveDir)
+		require.NoError(t, err)
+
+		// Should have at least one archive
+		archiveFound := false
+		for _, entry := range entries {
+			if filepath.Ext(entry.Name()) == gzipExt {
+				archiveFound = true
+				break
+			}
+		}
+		assert.True(t, archiveFound, "Archive file should have been created")
+	})
+
+	t.Run("skips archiving with --no-archive flag", func(t *testing.T) {
+		// Create environment
+		env := &environment.Environment{
+			Name: "no-archive",
+			Path: filepath.Join(envDir, "no-archive"),
+		}
+		err := os.MkdirAll(env.Path, 0755)
+		require.NoError(t, err)
+		err = env.Save()
+		require.NoError(t, err)
+
+		// Count existing archives
+		archiveDir := filepath.Join(envswitchDir, "archives")
+		initialCount := 0
+		if entries, err := os.ReadDir(archiveDir); err == nil {
+			for _, entry := range entries {
+				if filepath.Ext(entry.Name()) == gzipExt {
+					initialCount++
+				}
+			}
+		}
+
+		// Delete without archiving
+		deleteForce = true
+		deleteNoArchive = true
+		defer func() {
+			deleteForce = false
+			deleteNoArchive = false
+		}()
+
+		err = runDelete(deleteCmd, []string{"no-archive"})
+		require.NoError(t, err)
+
+		// Verify environment is deleted
+		_, err = os.Stat(env.Path)
+		assert.True(t, os.IsNotExist(err))
+
+		// Verify no new archive was created
+		finalCount := 0
+		if entries, err := os.ReadDir(archiveDir); err == nil {
+			for _, entry := range entries {
+				if filepath.Ext(entry.Name()) == gzipExt {
+					finalCount++
+				}
+			}
+		}
+		assert.Equal(t, initialCount, finalCount, "No new archive should have been created")
 	})
 }
