@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 
 	"github.com/hugofrely/envswitch/pkg/environment"
@@ -95,7 +96,5 @@ func runList(cmd *cobra.Command, args []string) error {
 }
 
 func formatTimeAgo(t time.Time) string {
-	// Simple time ago formatting
-	// TODO: Implement more sophisticated time formatting
-	return t.Format("2006-01-02 15:04")
+	return humanize.Time(t)
 }

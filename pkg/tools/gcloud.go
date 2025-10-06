@@ -139,19 +139,91 @@ func (g *GCloudTool) ValidateSnapshot(snapshotPath string) error {
 
 func (g *GCloudTool) Diff(snapshotPath string) ([]Change, error) {
 	// Get current metadata
-	_, err := g.GetMetadata()
+	currentMeta, err := g.GetMetadata()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current metadata: %w", err)
 	}
 
-	// TODO: Read metadata from snapshot and compare with current state
-	// For now, return empty changes
+	// Get snapshot metadata
+	snapshotMeta, err := g.getSnapshotMetadata(snapshotPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get snapshot metadata: %w", err)
+	}
+
 	changes := []Change{}
 
-	// This would compare currentMeta with snapshotMeta
-	// and generate a list of changes
+	// Compare account
+	changes = append(changes, compareMetadataField("account", snapshotMeta, currentMeta)...)
+
+	// Compare project
+	changes = append(changes, compareMetadataField("project", snapshotMeta, currentMeta)...)
+
+	// Compare region
+	changes = append(changes, compareMetadataField("region", snapshotMeta, currentMeta)...)
+
+	// Compare config_name
+	changes = append(changes, compareMetadataField("config_name", snapshotMeta, currentMeta)...)
 
 	return changes, nil
+}
+
+// getSnapshotMetadata reads metadata from a snapshot by parsing config files
+func (g *GCloudTool) getSnapshotMetadata(snapshotPath string) (map[string]interface{}, error) {
+	metadata := make(map[string]interface{})
+
+	// Try to read active configuration
+	configsPath := filepath.Join(snapshotPath, "configurations")
+	if entries, err := os.ReadDir(configsPath); err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.HasPrefix(entry.Name(), "config_") {
+				// Read config file to extract metadata
+				configFile := filepath.Join(configsPath, entry.Name())
+				if data, err := os.ReadFile(configFile); err == nil {
+					content := string(data)
+					lines := strings.Split(content, "\n")
+
+					inCoreSection := false
+					inComputeSection := false
+
+					for _, line := range lines {
+						line = strings.TrimSpace(line)
+
+						if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
+							sectionName := strings.Trim(line, "[]")
+							inCoreSection = sectionName == "core"
+							inComputeSection = sectionName == "compute"
+							continue
+						}
+
+						if strings.Contains(line, "=") {
+							parts := strings.SplitN(line, "=", 2)
+							if len(parts) == 2 {
+								key := strings.TrimSpace(parts[0])
+								value := strings.TrimSpace(parts[1])
+
+								if inCoreSection {
+									if key == "account" {
+										metadata["account"] = value
+									} else if key == "project" {
+										metadata["project"] = value
+									}
+								} else if inComputeSection && key == "region" {
+									metadata["region"] = value
+								}
+							}
+						}
+					}
+
+					// Extract config name from filename (config_default -> default)
+					configName := strings.TrimPrefix(entry.Name(), "config_")
+					metadata["config_name"] = configName
+					break // Only read the first config (active one should be there)
+				}
+			}
+		}
+	}
+
+	return metadata, nil
 }
 
 // execCommand executes a gcloud command and returns the output

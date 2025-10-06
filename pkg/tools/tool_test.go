@@ -97,6 +97,77 @@ func (m *MockTool) Diff(snapshotPath string) ([]Change, error) {
 	return m.diffChanges, m.diffErr
 }
 
+func TestCompareMetadataField(t *testing.T) {
+	t.Run("detects added field", func(t *testing.T) {
+		oldMeta := map[string]interface{}{}
+		newMeta := map[string]interface{}{"key": "value"}
+
+		changes := compareMetadataField("key", oldMeta, newMeta)
+
+		assert.Len(t, changes, 1)
+		assert.Equal(t, ChangeTypeAdded, changes[0].Type)
+		assert.Equal(t, "key", changes[0].Path)
+		assert.Empty(t, changes[0].OldValue)
+		assert.Equal(t, "value", changes[0].NewValue)
+	})
+
+	t.Run("detects removed field", func(t *testing.T) {
+		oldMeta := map[string]interface{}{"key": "value"}
+		newMeta := map[string]interface{}{}
+
+		changes := compareMetadataField("key", oldMeta, newMeta)
+
+		assert.Len(t, changes, 1)
+		assert.Equal(t, ChangeTypeRemoved, changes[0].Type)
+		assert.Equal(t, "key", changes[0].Path)
+		assert.Equal(t, "value", changes[0].OldValue)
+		assert.Empty(t, changes[0].NewValue)
+	})
+
+	t.Run("detects modified field", func(t *testing.T) {
+		oldMeta := map[string]interface{}{"key": "old_value"}
+		newMeta := map[string]interface{}{"key": "new_value"}
+
+		changes := compareMetadataField("key", oldMeta, newMeta)
+
+		assert.Len(t, changes, 1)
+		assert.Equal(t, ChangeTypeModified, changes[0].Type)
+		assert.Equal(t, "key", changes[0].Path)
+		assert.Equal(t, "old_value", changes[0].OldValue)
+		assert.Equal(t, "new_value", changes[0].NewValue)
+	})
+
+	t.Run("returns no changes when field is unchanged", func(t *testing.T) {
+		oldMeta := map[string]interface{}{"key": "value"}
+		newMeta := map[string]interface{}{"key": "value"}
+
+		changes := compareMetadataField("key", oldMeta, newMeta)
+
+		assert.Len(t, changes, 0)
+	})
+
+	t.Run("returns no changes when field doesn't exist in both", func(t *testing.T) {
+		oldMeta := map[string]interface{}{}
+		newMeta := map[string]interface{}{}
+
+		changes := compareMetadataField("key", oldMeta, newMeta)
+
+		assert.Len(t, changes, 0)
+	})
+
+	t.Run("handles different types correctly", func(t *testing.T) {
+		oldMeta := map[string]interface{}{"port": 8080}
+		newMeta := map[string]interface{}{"port": 9090}
+
+		changes := compareMetadataField("port", oldMeta, newMeta)
+
+		assert.Len(t, changes, 1)
+		assert.Equal(t, ChangeTypeModified, changes[0].Type)
+		assert.Equal(t, "8080", changes[0].OldValue)
+		assert.Equal(t, "9090", changes[0].NewValue)
+	})
+}
+
 func TestToolInterface(t *testing.T) {
 	t.Run("mock tool implements interface", func(t *testing.T) {
 		var tool Tool = &MockTool{

@@ -141,12 +141,65 @@ func (g *GitTool) Diff(snapshotPath string) ([]Change, error) {
 		return nil, fmt.Errorf("failed to get current metadata: %w", err)
 	}
 
+	// Get snapshot metadata
+	snapshotMeta, err := g.getSnapshotMetadata(snapshotPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get snapshot metadata: %w", err)
+	}
+
 	changes := []Change{}
 
-	// TODO: Read metadata from snapshot and compare
-	_ = currentMeta
+	// Compare user_name
+	changes = append(changes, compareMetadataField("user_name", snapshotMeta, currentMeta)...)
+
+	// Compare user_email
+	changes = append(changes, compareMetadataField("user_email", snapshotMeta, currentMeta)...)
+
+	// Compare signing_key
+	changes = append(changes, compareMetadataField("signing_key", snapshotMeta, currentMeta)...)
 
 	return changes, nil
+}
+
+// getSnapshotMetadata reads metadata from a snapshot by parsing .gitconfig file
+func (g *GitTool) getSnapshotMetadata(snapshotPath string) (map[string]interface{}, error) {
+	metadata := make(map[string]interface{})
+
+	gitConfigPath := filepath.Join(snapshotPath, "gitconfig")
+	if data, err := os.ReadFile(gitConfigPath); err == nil {
+		content := string(data)
+		lines := strings.Split(content, "\n")
+
+		inUserSection := false
+
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+
+			if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
+				sectionName := strings.Trim(line, "[]")
+				inUserSection = sectionName == "user"
+				continue
+			}
+
+			if inUserSection && strings.Contains(line, "=") {
+				parts := strings.SplitN(line, "=", 2)
+				if len(parts) == 2 {
+					key := strings.TrimSpace(parts[0])
+					value := strings.TrimSpace(parts[1])
+
+					if key == "name" {
+						metadata["user_name"] = value
+					} else if key == "email" {
+						metadata["user_email"] = value
+					} else if key == "signingkey" {
+						metadata["signing_key"] = value
+					}
+				}
+			}
+		}
+	}
+
+	return metadata, nil
 }
 
 // execCommand executes a command and returns the output

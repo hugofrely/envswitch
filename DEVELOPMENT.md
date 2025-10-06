@@ -104,12 +104,16 @@ make test
 ### 3. Verify Changes
 
 ```bash
-# Run all CI checks locally
-make ci
+# Quick checks (no linter required)
+make check         # Format, vet, build, test
+
+# Full CI checks (requires golangci-lint)
+make ci            # Format, vet, lint, test-race
 
 # Or step by step:
 make fmt           # Format code
 make vet           # Go vet
+make lint          # Run linter
 make test-race     # Tests with race detector
 make build         # Build
 ```
@@ -183,15 +187,17 @@ func TestMyFunction(t *testing.T) {
 
 ```bash
 # Install golangci-lint
-brew install golangci-lint  # macOS
+make install-lint           # Auto-install (recommended)
+# or
+brew install golangci-lint  # macOS via Homebrew
 # or
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
 # Run linter
-make lint
+make lint                   # Check for lint issues
 
 # Auto-fix issues
-golangci-lint run --fix
+make lint-fix               # Fix issues automatically when possible
 ```
 
 ### Formatting
@@ -243,10 +249,13 @@ make build             # Build binary
 make test              # Run tests
 make test-race         # Tests with race detector
 make test-coverage     # Coverage report
-make lint              # Run linter
+make lint              # Run golangci-lint
+make lint-fix          # Run golangci-lint with auto-fix
+make install-lint      # Install golangci-lint
 make fmt               # Format code
 make vet               # Go vet
-make ci                # All CI checks
+make check             # Quick checks (fmt, vet, build, test)
+make ci                # All CI checks (fmt, vet, lint, test-race)
 make setup-hooks       # Install git hooks
 make clean             # Clean build artifacts
 make deps              # Download dependencies

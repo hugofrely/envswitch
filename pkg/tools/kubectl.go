@@ -10,6 +10,10 @@ import (
 	"github.com/hugofrely/envswitch/internal/storage"
 )
 
+const (
+	defaultNamespace = "default"
+)
+
 // KubectlTool implements the Tool interface for Kubectl
 type KubectlTool struct {
 	KubeConfigDir string // ~/.kube
@@ -99,7 +103,7 @@ func (k *KubectlTool) GetMetadata() (map[string]interface{}, error) {
 	if namespace := k.execCommand("kubectl", "config", "view", "--minify", "-o", "jsonpath={.contexts[0].context.namespace}"); namespace != "" {
 		metadata["namespace"] = namespace
 	} else {
-		metadata["namespace"] = "default"
+		metadata["namespace"] = defaultNamespace
 	}
 
 	return metadata, nil
@@ -127,12 +131,63 @@ func (k *KubectlTool) Diff(snapshotPath string) ([]Change, error) {
 		return nil, fmt.Errorf("failed to get current metadata: %w", err)
 	}
 
+	// Get snapshot metadata
+	snapshotMeta, err := k.getSnapshotMetadata(snapshotPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get snapshot metadata: %w", err)
+	}
+
 	changes := []Change{}
 
-	// TODO: Read metadata from snapshot and compare
-	_ = currentMeta
+	// Compare current_context
+	changes = append(changes, compareMetadataField("current_context", snapshotMeta, currentMeta)...)
+
+	// Compare cluster
+	changes = append(changes, compareMetadataField("cluster", snapshotMeta, currentMeta)...)
+
+	// Compare namespace
+	changes = append(changes, compareMetadataField("namespace", snapshotMeta, currentMeta)...)
 
 	return changes, nil
+}
+
+// getSnapshotMetadata reads metadata from a snapshot kubeconfig file
+func (k *KubectlTool) getSnapshotMetadata(snapshotPath string) (map[string]interface{}, error) {
+	metadata := make(map[string]interface{})
+
+	configPath := filepath.Join(snapshotPath, "config")
+
+	// Create temporary KubectlTool with snapshot config to extract metadata
+	origKubeconfig := os.Getenv("KUBECONFIG")
+	if err := os.Setenv("KUBECONFIG", configPath); err != nil {
+		return nil, fmt.Errorf("failed to set KUBECONFIG: %w", err)
+	}
+	defer func() {
+		if origKubeconfig != "" {
+			_ = os.Setenv("KUBECONFIG", origKubeconfig)
+		} else {
+			_ = os.Unsetenv("KUBECONFIG")
+		}
+	}()
+
+	// Get current context from snapshot
+	if context := k.execCommand("kubectl", "config", "current-context"); context != "" {
+		metadata["current_context"] = context
+	}
+
+	// Get cluster info from snapshot
+	if cluster := k.execCommand("kubectl", "config", "view", "--minify", "-o", "jsonpath={.clusters[0].cluster.server}"); cluster != "" {
+		metadata["cluster"] = cluster
+	}
+
+	// Get namespace from snapshot
+	if namespace := k.execCommand("kubectl", "config", "view", "--minify", "-o", "jsonpath={.contexts[0].context.namespace}"); namespace != "" {
+		metadata["namespace"] = namespace
+	} else {
+		metadata["namespace"] = defaultNamespace
+	}
+
+	return metadata, nil
 }
 
 // execCommand executes a command and returns the output

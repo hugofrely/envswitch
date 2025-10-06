@@ -6,11 +6,13 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/hugofrely/envswitch/internal/archive"
 	"github.com/hugofrely/envswitch/pkg/environment"
 )
 
 var (
-	deleteForce bool
+	deleteForce     bool
+	deleteNoArchive bool
 )
 
 var deleteCmd = &cobra.Command{
@@ -25,6 +27,7 @@ var deleteCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(deleteCmd)
 	deleteCmd.Flags().BoolVarP(&deleteForce, "force", "f", false, "Skip confirmation")
+	deleteCmd.Flags().BoolVar(&deleteNoArchive, "no-archive", false, "Skip archiving before deletion")
 }
 
 func runDelete(cmd *cobra.Command, args []string) error {
@@ -57,8 +60,19 @@ func runDelete(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// TODO: Archive before deletion
-	// archiveEnvironment(env)
+	// Archive before deletion (unless --no-archive is specified)
+	var archivePath string
+	if !deleteNoArchive {
+		fmt.Println("📦 Archiving environment before deletion...")
+		arch, err := archive.ArchiveEnvironment(env)
+		if err != nil {
+			fmt.Printf("⚠️  Warning: Failed to archive environment: %v\n", err)
+			fmt.Println("   Proceeding with deletion...")
+		} else {
+			archivePath = arch.Path
+			fmt.Printf("✓ Archived to: %s\n", archivePath)
+		}
+	}
 
 	// Delete environment directory
 	if err := os.RemoveAll(env.Path); err != nil {
@@ -66,6 +80,9 @@ func runDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("✅ Environment '%s' deleted successfully\n", name)
+	if archivePath != "" {
+		fmt.Printf("   Archive saved at: %s\n", archivePath)
+	}
 
 	return nil
 }

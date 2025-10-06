@@ -152,11 +152,20 @@ func TestRunList(t *testing.T) {
 }
 
 func TestFormatTimeAgo(t *testing.T) {
-	now := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
-	formatted := formatTimeAgo(now)
+	// Test with a time 2 hours ago
+	twoHoursAgo := time.Now().Add(-2 * time.Hour)
+	formatted := formatTimeAgo(twoHoursAgo)
+	assert.Contains(t, formatted, "ago")
 
-	assert.Contains(t, formatted, "2024-01-15")
-	assert.Contains(t, formatted, "10:30")
+	// Test with a time far in the past
+	longAgo := time.Date(2020, 1, 15, 10, 30, 0, 0, time.UTC)
+	formatted = formatTimeAgo(longAgo)
+	assert.Contains(t, formatted, "ago")
+
+	// Test with future time
+	future := time.Now().Add(2 * time.Hour)
+	formatted = formatTimeAgo(future)
+	assert.Contains(t, formatted, "from now")
 }
 
 func TestListCommand(t *testing.T) {

@@ -140,12 +140,110 @@ func (a *AWSTool) Diff(snapshotPath string) ([]Change, error) {
 		return nil, fmt.Errorf("failed to get current metadata: %w", err)
 	}
 
+	// Get snapshot metadata by temporarily creating a new AWSTool pointing to snapshot
+	snapshotMeta, err := a.getSnapshotMetadata(snapshotPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get snapshot metadata: %w", err)
+	}
+
 	changes := []Change{}
 
-	// TODO: Read metadata from snapshot and compare
-	_ = currentMeta
+	// Compare profile
+	if currentMeta["profile"] != snapshotMeta["profile"] {
+		changes = append(changes, Change{
+			Type:     ChangeTypeModified,
+			Path:     "profile",
+			OldValue: fmt.Sprintf("%v", snapshotMeta["profile"]),
+			NewValue: fmt.Sprintf("%v", currentMeta["profile"]),
+		})
+	}
+
+	// Compare region
+	currentRegion, currentHasRegion := currentMeta["region"]
+	snapshotRegion, snapshotHasRegion := snapshotMeta["region"]
+
+	if currentHasRegion && !snapshotHasRegion {
+		changes = append(changes, Change{
+			Type:     ChangeTypeAdded,
+			Path:     "region",
+			NewValue: fmt.Sprintf("%v", currentRegion),
+		})
+	} else if !currentHasRegion && snapshotHasRegion {
+		changes = append(changes, Change{
+			Type:     ChangeTypeRemoved,
+			Path:     "region",
+			OldValue: fmt.Sprintf("%v", snapshotRegion),
+		})
+	} else if currentHasRegion && snapshotHasRegion && currentRegion != snapshotRegion {
+		changes = append(changes, Change{
+			Type:     ChangeTypeModified,
+			Path:     "region",
+			OldValue: fmt.Sprintf("%v", snapshotRegion),
+			NewValue: fmt.Sprintf("%v", currentRegion),
+		})
+	}
+
+	// Compare account ID
+	currentAccountID, currentHasAccountID := currentMeta["account_id"]
+	snapshotAccountID, snapshotHasAccountID := snapshotMeta["account_id"]
+
+	if currentHasAccountID && !snapshotHasAccountID {
+		changes = append(changes, Change{
+			Type:     ChangeTypeAdded,
+			Path:     "account_id",
+			NewValue: fmt.Sprintf("%v", currentAccountID),
+		})
+	} else if !currentHasAccountID && snapshotHasAccountID {
+		changes = append(changes, Change{
+			Type:     ChangeTypeRemoved,
+			Path:     "account_id",
+			OldValue: fmt.Sprintf("%v", snapshotAccountID),
+		})
+	} else if currentHasAccountID && snapshotHasAccountID && currentAccountID != snapshotAccountID {
+		changes = append(changes, Change{
+			Type:     ChangeTypeModified,
+			Path:     "account_id",
+			OldValue: fmt.Sprintf("%v", snapshotAccountID),
+			NewValue: fmt.Sprintf("%v", currentAccountID),
+		})
+	}
 
 	return changes, nil
+}
+
+// getSnapshotMetadata reads metadata from a snapshot by parsing the config files
+func (a *AWSTool) getSnapshotMetadata(snapshotPath string) (map[string]interface{}, error) {
+	metadata := make(map[string]interface{})
+
+	// Read profile from environment or default
+	profile := os.Getenv("AWS_PROFILE")
+	if profile == "" {
+		profile = "default"
+	}
+	metadata["profile"] = profile
+
+	// Try to read region from snapshot config file
+	configPath := filepath.Join(snapshotPath, "config")
+	if data, err := os.ReadFile(configPath); err == nil {
+		content := string(data)
+		// Simple parsing for region (this is a basic implementation)
+		lines := strings.Split(content, "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "region") {
+				parts := strings.SplitN(line, "=", 2)
+				if len(parts) == 2 {
+					metadata["region"] = strings.TrimSpace(parts[1])
+					break
+				}
+			}
+		}
+	}
+
+	// Note: We cannot get account_id from snapshot files alone as it requires API call
+	// So we skip account_id for snapshot metadata
+
+	return metadata, nil
 }
 
 // execCommand executes a command and returns the output

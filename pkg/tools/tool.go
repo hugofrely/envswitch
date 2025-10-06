@@ -1,5 +1,7 @@
 package tools
 
+import "fmt"
+
 // Tool is the interface that all tool integrations must implement
 type Tool interface {
 	// Name returns the name of the tool
@@ -40,3 +42,34 @@ const (
 	ChangeTypeRemoved  ChangeType = "removed"
 	ChangeTypeModified ChangeType = "modified"
 )
+
+// compareMetadataField compares a field in two metadata maps and returns changes
+func compareMetadataField(fieldName string, oldMeta, newMeta map[string]interface{}) []Change {
+	oldValue, oldExists := oldMeta[fieldName]
+	newValue, newExists := newMeta[fieldName]
+
+	var changes []Change
+
+	if newExists && !oldExists {
+		changes = append(changes, Change{
+			Type:     ChangeTypeAdded,
+			Path:     fieldName,
+			NewValue: fmt.Sprintf("%v", newValue),
+		})
+	} else if !newExists && oldExists {
+		changes = append(changes, Change{
+			Type:     ChangeTypeRemoved,
+			Path:     fieldName,
+			OldValue: fmt.Sprintf("%v", oldValue),
+		})
+	} else if newExists && oldExists && fmt.Sprintf("%v", oldValue) != fmt.Sprintf("%v", newValue) {
+		changes = append(changes, Change{
+			Type:     ChangeTypeModified,
+			Path:     fieldName,
+			OldValue: fmt.Sprintf("%v", oldValue),
+			NewValue: fmt.Sprintf("%v", newValue),
+		})
+	}
+
+	return changes
+}

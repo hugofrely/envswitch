@@ -67,14 +67,14 @@ func CopyFile(src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open source file: %w", err)
 	}
-	defer srcFile.Close()
+	defer func() { _ = srcFile.Close() }()
 
 	// Create destination file
 	dstFile, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, srcInfo.Mode())
 	if err != nil {
 		return fmt.Errorf("failed to create destination file: %w", err)
 	}
-	defer dstFile.Close()
+	defer func() { _ = dstFile.Close() }()
 
 	// Copy contents
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
