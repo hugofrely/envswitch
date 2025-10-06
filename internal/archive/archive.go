@@ -183,6 +183,45 @@ func DeleteArchive(archivePath string) error {
 	return nil
 }
 
+// CleanupOldArchives removes old archives based on retention policy
+func CleanupOldArchives(retentionCount int) (int, error) {
+	if retentionCount <= 0 {
+		return 0, nil // No cleanup if retention is 0 or negative
+	}
+
+	archives, err := ListArchives()
+	if err != nil {
+		return 0, fmt.Errorf("failed to list archives: %w", err)
+	}
+
+	// If we have fewer archives than the retention limit, nothing to do
+	if len(archives) <= retentionCount {
+		return 0, nil
+	}
+
+	// Sort archives by date (newest first)
+	// Using a simple bubble sort since the list is usually small
+	for i := 0; i < len(archives)-1; i++ {
+		for j := 0; j < len(archives)-i-1; j++ {
+			if archives[j].ArchivedAt.Before(archives[j+1].ArchivedAt) {
+				archives[j], archives[j+1] = archives[j+1], archives[j]
+			}
+		}
+	}
+
+	// Delete archives beyond retention count
+	deletedCount := 0
+	for i := retentionCount; i < len(archives); i++ {
+		if err := DeleteArchive(archives[i].Path); err != nil {
+			// Continue deleting others even if one fails
+			continue
+		}
+		deletedCount++
+	}
+
+	return deletedCount, nil
+}
+
 // RestoreArchive extracts an archived environment (for future use)
 func RestoreArchive(archivePath, destPath string) error {
 	// Open archive file

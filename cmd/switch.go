@@ -1,16 +1,20 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/hugofrely/envswitch/internal/archive"
+	"github.com/hugofrely/envswitch/internal/config"
 	"github.com/hugofrely/envswitch/internal/history"
 	"github.com/hugofrely/envswitch/internal/hooks"
+	"github.com/hugofrely/envswitch/internal/logger"
 	"github.com/hugofrely/envswitch/pkg/environment"
 	"github.com/hugofrely/envswitch/pkg/tools"
 )
@@ -42,9 +46,22 @@ func init() {
 func runSwitch(cmd *cobra.Command, args []string) error {
 	targetName := args[0]
 
+	// Load configuration
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		logger.Warn("Failed to load config, using defaults: %v", err)
+		cfg = config.DefaultConfig()
+	}
+
+	// Initialize logger and output
+	if logErr := logger.InitLogger(cfg); logErr != nil {
+		logger.Warn("Failed to initialize logger: %v", logErr)
+	}
+	defer logger.Close()
+
 	// Load target environment
-	if _, err := environment.LoadEnvironment(targetName); err != nil {
-		return fmt.Errorf("failed to load environment '%s': %w", targetName, err)
+	if _, loadErr := environment.LoadEnvironment(targetName); loadErr != nil {
+		return fmt.Errorf("failed to load environment '%s': %w", targetName, loadErr)
 	}
 
 	// Get current environment
@@ -64,7 +81,19 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 		return handleDryRun(fromName, targetName)
 	}
 
-	return performSwitch(currentEnv, targetName, fromName)
+	// Check auto-save configuration
+	if currentEnv != nil && cfg.AutoSaveBeforeSwitch == "prompt" {
+		fmt.Printf("\n💾 Save current environment '%s' before switching? (y/N): ", currentEnv.Name)
+		reader := bufio.NewReader(os.Stdin)
+		response, _ := reader.ReadString('\n')
+		response = strings.ToLower(strings.TrimSpace(response))
+
+		if response != "y" && response != "yes" {
+			logger.Info("Skipping auto-save as per user choice")
+		}
+	}
+
+	return performSwitch(currentEnv, targetName, fromName, cfg)
 }
 
 func getFromName(currentEnv *environment.Environment) string {
@@ -82,7 +111,7 @@ func handleDryRun(fromName, targetName string) error {
 	return nil
 }
 
-func performSwitch(currentEnv *environment.Environment, targetName, fromName string) error {
+func performSwitch(currentEnv *environment.Environment, targetName, fromName string, cfg *config.Config) error {
 	startTime := time.Now()
 
 	targetEnv, err := environment.LoadEnvironment(targetName)
@@ -90,6 +119,7 @@ func performSwitch(currentEnv *environment.Environment, targetName, fromName str
 		return err
 	}
 
+	logger.Info("Switching from '%s' to '%s'", fromName, targetName)
 	fmt.Printf("🔄 Switching from '%s' to '%s'...\n", fromName, targetName)
 	fmt.Println()
 
@@ -202,6 +232,12 @@ func executePostSwitchHooks(targetEnv *environment.Environment, targetName strin
 }
 
 func finalizeSwitch(targetEnv *environment.Environment, targetName string, entry *history.SwitchEntry, startTime time.Time, backupPath string) error {
+	// Load config for verification settings
+	cfg, _ := config.LoadConfig()
+	if cfg == nil {
+		cfg = config.DefaultConfig()
+	}
+
 	if err := environment.SetCurrentEnvironment(targetName); err != nil {
 		return fmt.Errorf("failed to update current environment: %w", err)
 	}
@@ -216,11 +252,24 @@ func finalizeSwitch(targetEnv *environment.Environment, targetName string, entry
 	recordHistory(entry)
 
 	fmt.Printf("✅ Successfully switched to '%s' (%.2fs)\n", targetName, time.Since(startTime).Seconds())
+	logger.Info("Successfully switched to '%s' in %.2fs", targetName, time.Since(startTime).Seconds())
+
 	if backupPath != "" {
 		fmt.Printf("   Backup: %s\n", filepath.Base(backupPath))
 	}
 
-	if switchVerify {
+	// Cleanup old backups based on retention policy
+	if cfg.BackupRetention > 0 {
+		deleted, err := archive.CleanupOldArchives(cfg.BackupRetention)
+		if err != nil {
+			logger.Warn("Failed to cleanup old archives: %v", err)
+		} else if deleted > 0 {
+			logger.Debug("Cleaned up %d old archive(s)", deleted)
+		}
+	}
+
+	// Verify after switch if configured or flag is set
+	if cfg.VerifyAfterSwitch || switchVerify {
 		fmt.Println()
 		fmt.Println("🔍 Verification:")
 		verifyEnvironment(targetEnv)
@@ -346,13 +395,37 @@ func recordHistory(entry *history.SwitchEntry) {
 	}
 }
 
-// getToolRegistry returns a map of all available tools
+// getToolRegistry returns a map of all available tools, filtered by config
 func getToolRegistry() map[string]tools.Tool {
-	return map[string]tools.Tool{
+	allTools := map[string]tools.Tool{
 		"git":     tools.NewGitTool(),
 		"aws":     tools.NewAWSTool(),
 		"gcloud":  tools.NewGCloudTool(),
 		"kubectl": tools.NewKubectlTool(),
 		"docker":  tools.NewDockerTool(),
 	}
+
+	// Load config to check for excluded tools
+	cfg, err := config.LoadConfig()
+	if err != nil || cfg == nil || len(cfg.ExcludeTools) == 0 {
+		return allTools
+	}
+
+	// Filter out excluded tools
+	filteredTools := make(map[string]tools.Tool)
+	for name, tool := range allTools {
+		excluded := false
+		for _, excludedTool := range cfg.ExcludeTools {
+			if name == excludedTool {
+				excluded = true
+				logger.Debug("Excluding tool '%s' as per configuration", name)
+				break
+			}
+		}
+		if !excluded {
+			filteredTools[name] = tool
+		}
+	}
+
+	return filteredTools
 }
