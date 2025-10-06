@@ -240,30 +240,6 @@ verify_installation() {
 
 # Install shell auto-completion
 install_completion() {
-    echo ""
-
-    # Check if we're running interactively
-    if [ -t 0 ]; then
-        echo -n "Install shell auto-completion? [Y/n] "
-        read -r response
-        response=${response:-Y}
-    else
-        # Non-interactive mode (piped from curl)
-        if [ -t 1 ] && [ -c /dev/tty ]; then
-            echo -n "Install shell auto-completion? [Y/n] "
-            read -r response < /dev/tty || response="n"
-            response=${response:-Y}
-        else
-            log_info "Non-interactive mode: skipping auto-completion (install manually with: envswitch completion [bash|zsh|fish])"
-            return
-        fi
-    fi
-
-    if [[ ! "$response" =~ ^[Yy]$ ]]; then
-        log_info "Skipped auto-completion installation"
-        return
-    fi
-
     log_info "Installing auto-completion..."
 
     # Detect shell
