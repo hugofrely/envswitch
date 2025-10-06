@@ -236,6 +236,93 @@ func TestRunSwitch(t *testing.T) {
 		os.RemoveAll(env.Path)
 		os.Remove(filepath.Join(envswitchDir, "current.lock"))
 	})
+
+	t.Run("handles tools with missing configuration gracefully", func(t *testing.T) {
+		// Create source environment with kubectl enabled (but no .kube directory)
+		sourceEnv := &environment.Environment{
+			Name:      "source-with-missing-tool",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Tools: map[string]environment.ToolConfig{
+				"kubectl": {
+					Enabled: true,
+				},
+			},
+			EnvVars: make(map[string]string),
+			Path:    filepath.Join(envsDir, "source-with-missing-tool"),
+		}
+		os.MkdirAll(sourceEnv.Path, 0755)
+		err := sourceEnv.Save()
+		require.NoError(t, err)
+
+		// Create target environment
+		targetEnv := &environment.Environment{
+			Name:      "target-simple",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Tools:     make(map[string]environment.ToolConfig),
+			EnvVars:   make(map[string]string),
+			Path:      filepath.Join(envsDir, "target-simple"),
+		}
+		os.MkdirAll(targetEnv.Path, 0755)
+		err = targetEnv.Save()
+		require.NoError(t, err)
+
+		// Set source as current
+		err = environment.SetCurrentEnvironment("source-with-missing-tool")
+		require.NoError(t, err)
+
+		// Switch should succeed despite kubectl config missing
+		err = runSwitch(switchCmd, []string{"target-simple"})
+		require.NoError(t, err)
+
+		// Verify switch succeeded
+		current, err := environment.GetCurrentEnvironment()
+		require.NoError(t, err)
+		assert.Equal(t, "target-simple", current.Name)
+
+		// Clean up
+		os.RemoveAll(sourceEnv.Path)
+		os.RemoveAll(targetEnv.Path)
+		os.Remove(filepath.Join(envswitchDir, "current.lock"))
+	})
+
+	t.Run("handles invalid snapshots gracefully during restore", func(t *testing.T) {
+		// Create target environment with invalid/empty snapshot
+		targetEnv := &environment.Environment{
+			Name:      "target-with-invalid-snapshot",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Tools: map[string]environment.ToolConfig{
+				"kubectl": {
+					Enabled: true,
+				},
+			},
+			EnvVars: make(map[string]string),
+			Path:    filepath.Join(envsDir, "target-with-invalid-snapshot"),
+		}
+		os.MkdirAll(targetEnv.Path, 0755)
+
+		// Create empty snapshot directory (invalid)
+		emptySnapshotPath := filepath.Join(targetEnv.Path, "snapshots", "kubectl")
+		os.MkdirAll(emptySnapshotPath, 0755)
+
+		err := targetEnv.Save()
+		require.NoError(t, err)
+
+		// Switch should succeed despite invalid snapshot
+		err = runSwitch(switchCmd, []string{"target-with-invalid-snapshot"})
+		require.NoError(t, err)
+
+		// Verify switch succeeded
+		current, err := environment.GetCurrentEnvironment()
+		require.NoError(t, err)
+		assert.Equal(t, "target-with-invalid-snapshot", current.Name)
+
+		// Clean up
+		os.RemoveAll(targetEnv.Path)
+		os.Remove(filepath.Join(envswitchDir, "current.lock"))
+	})
 }
 
 func TestSwitchCommand(t *testing.T) {

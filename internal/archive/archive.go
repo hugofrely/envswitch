@@ -63,20 +63,20 @@ func ArchiveEnvironment(env *environment.Environment) (*Archive, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create archive file: %w", err)
 	}
-	defer archiveFile.Close()
+	defer func() { _ = archiveFile.Close() }()
 
 	// Create gzip writer
 	gzipWriter := gzip.NewWriter(archiveFile)
-	defer gzipWriter.Close()
+	defer func() { _ = gzipWriter.Close() }()
 
 	// Create tar writer
 	tarWriter := tar.NewWriter(gzipWriter)
-	defer tarWriter.Close()
+	defer func() { _ = tarWriter.Close() }()
 
 	// Archive the entire environment directory
 	if err := archiveDirectory(tarWriter, env.Path, env.Name); err != nil {
 		// Clean up partial archive on error
-		os.Remove(archivePath)
+		_ = os.Remove(archivePath)
 		return nil, fmt.Errorf("failed to archive environment: %w", err)
 	}
 
@@ -121,7 +121,7 @@ func archiveDirectory(tarWriter *tar.Writer, sourcePath, basePath string) error 
 			if err != nil {
 				return fmt.Errorf("failed to open file: %w", err)
 			}
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 
 			if _, err := io.Copy(tarWriter, file); err != nil {
 				return fmt.Errorf("failed to write file content: %w", err)
@@ -190,14 +190,14 @@ func RestoreArchive(archivePath, destPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open archive: %w", err)
 	}
-	defer archiveFile.Close()
+	defer func() { _ = archiveFile.Close() }()
 
 	// Create gzip reader
 	gzipReader, err := gzip.NewReader(archiveFile)
 	if err != nil {
 		return fmt.Errorf("failed to create gzip reader: %w", err)
 	}
-	defer gzipReader.Close()
+	defer func() { _ = gzipReader.Close() }()
 
 	// Create tar reader
 	tarReader := tar.NewReader(gzipReader)
@@ -236,10 +236,10 @@ func RestoreArchive(archivePath, destPath string) error {
 
 			// #nosec G110 - Decompression bomb risk is acceptable for trusted archives
 			if _, err := io.Copy(outFile, tarReader); err != nil {
-				outFile.Close()
+				_ = outFile.Close()
 				return fmt.Errorf("failed to write file content: %w", err)
 			}
-			outFile.Close()
+			_ = outFile.Close()
 		}
 	}
 

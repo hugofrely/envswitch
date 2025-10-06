@@ -33,15 +33,16 @@ func executeHook(hook environment.Hook, envName string, index, total int) error 
 	fmt.Printf("  Running hook %d/%d: %s\n", index, total, description)
 
 	var cmd *exec.Cmd
-	if hook.Command != "" {
+	switch {
+	case hook.Command != "":
 		// Execute as shell command
 		// #nosec G204 - Command execution from trusted user configuration is intentional
 		cmd = exec.Command("sh", "-c", hook.Command)
-	} else if hook.Script != "" {
+	case hook.Script != "":
 		// Execute as inline script
 		// #nosec G204 - Script execution from trusted user configuration is intentional
 		cmd = exec.Command("sh", "-c", hook.Script)
-	} else {
+	default:
 		return fmt.Errorf("hook has neither command nor script")
 	}
 

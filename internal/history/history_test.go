@@ -111,7 +111,7 @@ func TestHistoryAddEntry(t *testing.T) {
 		ToolsCount: 1,
 	}
 
-	err = history.AddEntry(entry)
+	err = history.AddEntry(&entry)
 	require.NoError(t, err)
 
 	// Load and verify

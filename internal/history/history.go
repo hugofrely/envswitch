@@ -81,8 +81,8 @@ func (h *History) Save() error {
 }
 
 // AddEntry adds a new switch entry to the history
-func (h *History) AddEntry(entry SwitchEntry) error {
-	h.Entries = append(h.Entries, entry)
+func (h *History) AddEntry(entry *SwitchEntry) error {
+	h.Entries = append(h.Entries, *entry)
 	return h.Save()
 }
 

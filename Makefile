@@ -59,22 +59,40 @@ deps: ## Download dependencies
 	$(GOMOD) download
 	$(GOMOD) tidy
 
-lint: ## Run linter
-	@echo "Running linter..."
-	@which golangci-lint > /dev/null || (echo "golangci-lint not installed. Install with: brew install golangci-lint" && exit 1)
-	@golangci-lint run
+lint: ## Run golangci-lint
+	@echo "Running golangci-lint..."
+	@which golangci-lint > /dev/null || (echo "❌ golangci-lint not installed." && echo "Install with: brew install golangci-lint" && echo "Or: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin" && exit 1)
+	@golangci-lint run --config .golangci.yml
 
-fmt: ## Format code
+lint-fix: ## Run golangci-lint with auto-fix
+	@echo "Running golangci-lint with auto-fix..."
+	@which golangci-lint > /dev/null || (echo "❌ golangci-lint not installed." && echo "Install with: brew install golangci-lint" && exit 1)
+	@golangci-lint run --fix --config .golangci.yml
+
+fmt: ## Format code with gofmt
 	@echo "Formatting code..."
 	@gofmt -w .
 	@$(GOCMD) mod tidy
+
+check: ## Quick check (fmt, vet, build, test)
+	@echo "Running quick checks..."
+	@$(MAKE) fmt
+	@$(MAKE) vet
+	@$(MAKE) build
+	@$(MAKE) test
+	@echo "✅ Quick checks passed!"
 
 vet: ## Run go vet
 	@echo "Running go vet..."
 	@$(GOCMD) vet ./...
 
-ci: fmt vet test-race ## Run all CI checks locally
-	@echo "All CI checks passed!"
+install-lint: ## Install golangci-lint
+	@echo "Installing golangci-lint..."
+	@which brew > /dev/null && brew install golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.64.8
+	@echo "✓ golangci-lint installed successfully!"
+
+ci: fmt vet lint test-race ## Run all CI checks locally (format, vet, lint, test)
+	@echo "✅ All CI checks passed!"
 
 setup-hooks: ## Install git pre-commit hooks
 	@echo "Installing git hooks..."

@@ -105,12 +105,12 @@ func performSwitch(currentEnv *environment.Environment, targetName, fromName str
 		return err
 	}
 
-	if err := saveCurrentState(currentEnv); err != nil {
-		return err
+	if saveErr := saveCurrentState(currentEnv); saveErr != nil {
+		return saveErr
 	}
 
-	if err := executePreSwitchHooks(targetEnv, targetName, &historyEntry, startTime); err != nil {
-		return err
+	if hookErr := executePreSwitchHooks(targetEnv, targetName, &historyEntry, startTime); hookErr != nil {
+		return hookErr
 	}
 
 	toolCount, err := restoreTargetState(targetEnv, &historyEntry, startTime)
@@ -232,6 +232,7 @@ func finalizeSwitch(targetEnv *environment.Environment, targetName string, entry
 // snapshotCurrentEnvironment creates snapshots of all enabled tools in the current environment
 func snapshotCurrentEnvironment(env *environment.Environment) error {
 	toolRegistry := getToolRegistry()
+	snapshotCount := 0
 
 	for toolName, config := range env.Tools {
 		if !config.Enabled {
@@ -246,20 +247,25 @@ func snapshotCurrentEnvironment(env *environment.Environment) error {
 
 		snapshotPath := filepath.Join(env.Path, "snapshots", toolName)
 		if err := os.MkdirAll(snapshotPath, 0755); err != nil {
-			return fmt.Errorf("failed to create snapshot directory for %s: %w", toolName, err)
+			fmt.Printf("  ⚠️  Failed to create snapshot directory for %s: %v, skipping\n", toolName, err)
+			continue
 		}
 
 		fmt.Printf("  Snapshotting %s...\n", toolName)
 		if err := tool.Snapshot(snapshotPath); err != nil {
-			return fmt.Errorf("failed to snapshot %s: %w", toolName, err)
+			fmt.Printf("  ⚠️  Failed to snapshot %s: %v, skipping\n", toolName, err)
+			continue
 		}
 
 		// Update snapshot metadata
 		config.SnapshotPath = snapshotPath
 		env.Tools[toolName] = config
+		snapshotCount++
 	}
 
-	env.LastSnapshot = time.Now()
+	if snapshotCount > 0 {
+		env.LastSnapshot = time.Now()
+	}
 	return env.Save()
 }
 
@@ -281,15 +287,22 @@ func restoreEnvironment(env *environment.Environment) (int, error) {
 
 		snapshotPath := filepath.Join(env.Path, "snapshots", toolName)
 
-		// Check if snapshot exists
+		// Check if snapshot exists and is valid
 		if _, err := os.Stat(snapshotPath); os.IsNotExist(err) {
 			fmt.Printf("  ⚠️  No snapshot found for %s, skipping\n", toolName)
 			continue
 		}
 
+		// Validate snapshot before restoring
+		if err := tool.ValidateSnapshot(snapshotPath); err != nil {
+			fmt.Printf("  ⚠️  Invalid snapshot for %s: %v, skipping\n", toolName, err)
+			continue
+		}
+
 		fmt.Printf("  Restoring %s...\n", toolName)
 		if err := tool.Restore(snapshotPath); err != nil {
-			return restoredCount, fmt.Errorf("failed to restore %s: %w", toolName, err)
+			fmt.Printf("  ⚠️  Failed to restore %s: %v, skipping\n", toolName, err)
+			continue
 		}
 		restoredCount++
 	}
@@ -328,7 +341,7 @@ func recordHistory(entry *history.SwitchEntry) {
 		return
 	}
 
-	if err := hist.AddEntry(*entry); err != nil {
+	if err := hist.AddEntry(entry); err != nil {
 		fmt.Printf("⚠️  Warning: Failed to save history: %v\n", err)
 	}
 }
@@ -336,10 +349,10 @@ func recordHistory(entry *history.SwitchEntry) {
 // getToolRegistry returns a map of all available tools
 func getToolRegistry() map[string]tools.Tool {
 	return map[string]tools.Tool{
-		"git":     &tools.GitTool{},
-		"aws":     &tools.AWSTool{},
-		"gcloud":  &tools.GCloudTool{},
-		"kubectl": &tools.KubectlTool{},
-		"docker":  &tools.DockerTool{},
+		"git":     tools.NewGitTool(),
+		"aws":     tools.NewAWSTool(),
+		"gcloud":  tools.NewGCloudTool(),
+		"kubectl": tools.NewKubectlTool(),
+		"docker":  tools.NewDockerTool(),
 	}
 }
