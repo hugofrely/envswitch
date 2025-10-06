@@ -5,7 +5,7 @@
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![Project Status](https://img.shields.io/badge/status-alpha-orange.svg)](PROJECT_STATUS.md)
+[![Project Status](https://img.shields.io/badge/status-beta-yellow.svg)](PROJECT_STATUS.md)
 
 EnvSwitch is a powerful CLI tool that captures, saves, and restores the complete state of your development environments. Switch instantly between work and personal projects, different client environments, or testing scenarios—without losing your authentication, configurations, or contexts.
 
