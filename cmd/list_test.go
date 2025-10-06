@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hugofrely/envswitch/pkg/environment"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hugofrely/envswitch/pkg/environment"
 )
 
 func TestRunList(t *testing.T) {

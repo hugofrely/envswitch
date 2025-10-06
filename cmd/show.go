@@ -3,8 +3,9 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/hugofrely/envswitch/pkg/environment"
 	"github.com/spf13/cobra"
+
+	"github.com/hugofrely/envswitch/pkg/environment"
 )
 
 var showCmd = &cobra.Command{

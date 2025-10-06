@@ -5,9 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/hugofrely/envswitch/pkg/environment"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hugofrely/envswitch/pkg/environment"
 )
 
 func TestRunDelete(t *testing.T) {

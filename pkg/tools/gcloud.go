@@ -94,22 +94,22 @@ func (g *GCloudTool) GetMetadata() (map[string]interface{}, error) {
 	metadata := make(map[string]interface{})
 
 	// Get account
-	if account := g.execCommand("gcloud", "config", "get-value", "account"); account != "" {
+	if account := g.execCommand("config", "get-value", "account"); account != "" {
 		metadata["account"] = account
 	}
 
 	// Get project
-	if project := g.execCommand("gcloud", "config", "get-value", "project"); project != "" {
+	if project := g.execCommand("config", "get-value", "project"); project != "" {
 		metadata["project"] = project
 	}
 
 	// Get region
-	if region := g.execCommand("gcloud", "config", "get-value", "compute/region"); region != "" {
+	if region := g.execCommand("config", "get-value", "compute/region"); region != "" {
 		metadata["region"] = region
 	}
 
 	// Get active configuration
-	if config := g.execCommand("gcloud", "config", "configurations", "list", "--filter=is_active:true", "--format=value(name)"); config != "" {
+	if config := g.execCommand("config", "configurations", "list", "--filter=is_active:true", "--format=value(name)"); config != "" {
 		metadata["config_name"] = config
 	}
 
@@ -154,9 +154,9 @@ func (g *GCloudTool) Diff(snapshotPath string) ([]Change, error) {
 	return changes, nil
 }
 
-// execCommand executes a command and returns the output
-func (g *GCloudTool) execCommand(name string, args ...string) string {
-	cmd := exec.Command(name, args...)
+// execCommand executes a gcloud command and returns the output
+func (g *GCloudTool) execCommand(args ...string) string {
+	cmd := exec.Command("gcloud", args...)
 	output, err := cmd.Output()
 	if err != nil {
 		return ""

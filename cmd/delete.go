@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hugofrely/envswitch/pkg/environment"
 	"github.com/spf13/cobra"
+
+	"github.com/hugofrely/envswitch/pkg/environment"
 )
 
 var (
@@ -47,11 +48,11 @@ func runDelete(cmd *cobra.Command, args []string) error {
 		var response string
 		if _, err := fmt.Scanln(&response); err != nil {
 			// If there's an error reading input, treat as "no"
-			fmt.Println("Cancelled.")
+			fmt.Println("Canceled.")
 			return nil
 		}
 		if response != "y" && response != "Y" {
-			fmt.Println("Cancelled.")
+			fmt.Println("Canceled.")
 			return nil
 		}
 	}

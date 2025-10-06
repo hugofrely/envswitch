@@ -6,9 +6,10 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/hugofrely/envswitch/pkg/environment"
 	"github.com/hugofrely/envswitch/pkg/tools"
-	"github.com/spf13/cobra"
 )
 
 var (
