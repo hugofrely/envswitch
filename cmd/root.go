@@ -12,6 +12,11 @@ var (
 	cfgFile string
 	verbose bool
 	debug   bool
+
+	// Version information - set via ldflags during build
+	Version   = "dev"
+	GitCommit = "unknown"
+	BuildDate = "unknown"
 )
 
 var rootCmd = &cobra.Command{
@@ -24,7 +29,6 @@ Think of it as snapshots for your CLI tools: when you switch from one
 environment to another, EnvSwitch automatically saves the current state
 (authentications, configurations, contexts) and restores the exact state
 of the target environment.`,
-	Version: "0.1.0",
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -34,6 +38,9 @@ func Execute() error {
 
 func init() {
 	cobra.OnInitialize(initConfig)
+
+	// Set version information
+	rootCmd.Version = fmt.Sprintf("%s (commit: %s, built: %s)", Version, GitCommit, BuildDate)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.envswitch/config.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")

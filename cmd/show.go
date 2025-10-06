@@ -9,11 +9,12 @@ import (
 )
 
 var showCmd = &cobra.Command{
-	Use:   "show <name>",
-	Short: "Show details of an environment",
-	Long:  `Display detailed information about a specific environment.`,
-	Args:  cobra.ExactArgs(1),
-	RunE:  runShow,
+	Use:               "show <name>",
+	Short:             "Show details of an environment",
+	Long:              `Display detailed information about a specific environment.`,
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: completeEnvironmentNames,
+	RunE:              runShow,
 }
 
 func init() {

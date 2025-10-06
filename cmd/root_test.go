@@ -11,7 +11,8 @@ func TestRootCommand(t *testing.T) {
 		assert.Equal(t, "envswitch", rootCmd.Use)
 		assert.NotEmpty(t, rootCmd.Short)
 		assert.NotEmpty(t, rootCmd.Long)
-		assert.Equal(t, "0.1.0", rootCmd.Version)
+		assert.NotEmpty(t, rootCmd.Version) // Version is set dynamically
+		assert.Contains(t, rootCmd.Version, Version)
 	})
 
 	t.Run("has persistent flags", func(t *testing.T) {

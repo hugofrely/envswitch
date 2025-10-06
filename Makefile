@@ -14,6 +14,16 @@ GOTEST=$(GOCMD) test
 GOGET=$(GOCMD) get
 GOMOD=$(GOCMD) mod
 
+# Version information from git
+VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+GIT_COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
+
+# Linker flags
+LDFLAGS=-X github.com/hugofrely/envswitch/cmd.Version=$(VERSION) \
+        -X github.com/hugofrely/envswitch/cmd.GitCommit=$(GIT_COMMIT) \
+        -X github.com/hugofrely/envswitch/cmd.BuildDate=$(BUILD_DATE)
+
 help: ## Show this help message
 	@echo 'Usage: make [target]'
 	@echo ''
@@ -21,9 +31,9 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 build: ## Build the binary
-	@echo "Building..."
+	@echo "Building $(BINARY_NAME) $(VERSION)..."
 	@mkdir -p $(BUILD_DIR)
-	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME) -v
+	$(GOBUILD) -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) -v
 
 install: build ## Install the binary to /usr/local/bin
 	@echo "Installing to /usr/local/bin..."
@@ -32,7 +42,7 @@ install: build ## Install the binary to /usr/local/bin
 
 dev: ## Build and run in development mode
 	@echo "Building and running..."
-	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME) -v
+	$(GOBUILD) -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) -v
 	@./$(BUILD_DIR)/$(BINARY_NAME)
 
 test: ## Run tests
@@ -103,20 +113,20 @@ run: build ## Build and run
 
 # Cross-compilation targets
 build-linux: ## Build for Linux
-	@echo "Building for Linux..."
+	@echo "Building for Linux $(VERSION)..."
 	@mkdir -p $(BUILD_DIR)
-	GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 -v
+	GOOS=linux GOARCH=amd64 $(GOBUILD) -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 -v
 
 build-darwin: ## Build for macOS
-	@echo "Building for macOS..."
+	@echo "Building for macOS $(VERSION)..."
 	@mkdir -p $(BUILD_DIR)
-	GOOS=darwin GOARCH=amd64 $(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 -v
-	GOOS=darwin GOARCH=arm64 $(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 -v
+	GOOS=darwin GOARCH=amd64 $(GOBUILD) -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 -v
+	GOOS=darwin GOARCH=arm64 $(GOBUILD) -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 -v
 
 build-windows: ## Build for Windows
-	@echo "Building for Windows..."
+	@echo "Building for Windows $(VERSION)..."
 	@mkdir -p $(BUILD_DIR)
-	GOOS=windows GOARCH=amd64 $(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe -v
+	GOOS=windows GOARCH=amd64 $(GOBUILD) -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe -v
 
 build-all: build-linux build-darwin build-windows ## Build for all platforms
 	@echo "Built for all platforms!"

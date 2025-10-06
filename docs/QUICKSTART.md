@@ -4,7 +4,31 @@ This guide will help you get started with EnvSwitch in 5 minutes.
 
 ## Installation
 
-### Option 1: Install from source (requires Go)
+### Option 1: Download Binary (Recommended)
+
+Visit the [releases page](https://github.com/hugofrely/envswitch/releases/latest) and download the binary for your platform:
+
+```bash
+# macOS (Apple Silicon)
+curl -LO https://github.com/hugofrely/envswitch/releases/latest/download/envswitch-darwin-arm64
+chmod +x envswitch-darwin-arm64
+sudo mv envswitch-darwin-arm64 /usr/local/bin/envswitch
+
+# macOS (Intel)
+curl -LO https://github.com/hugofrely/envswitch/releases/latest/download/envswitch-darwin-amd64
+chmod +x envswitch-darwin-amd64
+sudo mv envswitch-darwin-amd64 /usr/local/bin/envswitch
+
+# Linux
+curl -LO https://github.com/hugofrely/envswitch/releases/latest/download/envswitch-linux-amd64
+chmod +x envswitch-linux-amd64
+sudo mv envswitch-linux-amd64 /usr/local/bin/envswitch
+
+# Verify installation
+envswitch --version
+```
+
+### Option 2: Install from Source (requires Go)
 
 ```bash
 git clone https://github.com/hugofrely/envswitch.git
@@ -12,11 +36,7 @@ cd envswitch
 make install
 ```
 
-### Option 2: Download binary
-
-Visit the [releases page](https://github.com/hugofrely/envswitch/releases) and download the binary for your platform.
-
-### Option 3: Install script
+### Option 3: Install Script (Coming Soon)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hugofrely/envswitch/main/install.sh | bash
@@ -30,9 +50,52 @@ curl -fsSL https://raw.githubusercontent.com/hugofrely/envswitch/main/install.sh
 envswitch init
 ```
 
-This creates `~/.envswitch/` directory with default configuration.
+This creates:
 
-### 2. Create Your First Environment
+- `~/.envswitch/` directory
+- `~/.envswitch/config.yaml` with default configuration
+- `~/.envswitch/environments/` for your environments
+- `~/.envswitch/archives/` for deleted environment backups
+- `~/.envswitch/history.log` for tracking switches
+
+### 2. Install Shell Integration (Optional but Recommended)
+
+Get environment name in your shell prompt and auto-completion:
+
+```bash
+# For bash
+envswitch shell install bash
+source ~/.bashrc
+
+# For zsh
+envswitch shell install zsh
+source ~/.zshrc
+
+# For fish
+envswitch shell install fish
+source ~/.config/fish/config.fish
+```
+
+Your prompt will now show the current environment: `(work) user@machine$`
+
+### 3. Enable Auto-completion (Optional)
+
+```bash
+# Bash
+envswitch completion bash > /usr/local/etc/bash_completion.d/envswitch
+
+# Zsh
+envswitch completion zsh > "${fpath[1]}/_envswitch"
+
+# Fish
+envswitch completion fish > ~/.config/fish/completions/envswitch.fish
+```
+
+Now you can use `envswitch switch <TAB>` to see available environments!
+
+## Creating Your First Environment
+
+### Capture Current State
 
 Capture your current development environment:
 
@@ -41,24 +104,29 @@ envswitch create work --from-current --description "Work environment"
 ```
 
 This creates a snapshot of your current:
-- GCloud authentication and configuration
-- Kubectl contexts
-- AWS credentials and profiles
-- Docker registry authentication
-- Git configuration
 
-### 3. Make Changes and Create Another Environment
+- ✅ **GCloud** - authentication and configuration
+- ✅ **Kubectl** - contexts and clusters
+- ✅ **AWS** - credentials and profiles
+- ✅ **Docker** - registry authentication
+- ✅ **Git** - configuration
+- ✅ **Environment Variables** - (if configured in metadata.yaml)
+
+### Make Changes and Create Another Environment
 
 ```bash
 # Switch to personal GCloud account
 gcloud auth login personal@gmail.com
 gcloud config set project my-personal-project
 
+# Switch kubectl context
+kubectl config use-context minikube
+
 # Create personal environment
 envswitch create personal --from-current --description "Personal projects"
 ```
 
-### 4. Switch Between Environments
+## Switching Between Environments
 
 Now you can instantly switch between your work and personal environments:
 
@@ -69,63 +137,318 @@ envswitch switch work
 # Switch to personal
 envswitch switch personal
 
-# Or use the shortcut
-envswitch work
+# Switch with verification
+envswitch switch work --verify
 ```
+
+**What happens during a switch:**
+
+1. 📦 Creates backup of current environment (auto-archived)
+2. 💾 Saves current state to current environment
+3. 🔄 Restores target environment state
+4. ✅ Updates current.lock file
+5. 🧹 Cleans up old backups (based on `backup_retention` config)
 
 ## Common Workflows
 
 ### List All Environments
 
 ```bash
+# Simple list
 envswitch list
-# or
-envswitch ls --detailed
+
+# Detailed view
+envswitch list --detailed
+
+# Shows:
+# - Environment names and descriptions
+# - Active environment (marked with *)
+# - Last used timestamp
+# - Enabled tools
 ```
 
 ### Show Environment Details
 
 ```bash
 envswitch show work
+
+# Shows:
+# - Environment metadata
+# - Snapshot contents
+# - Environment variables
+# - Enabled tools with their metadata
+# - Tags
 ```
 
-### Create Environment from Another
+### Configure Environment Variables
+
+Environment variables are captured and restored automatically:
 
 ```bash
-envswitch create work-dev --from work --description "Development environment"
+# Edit environment metadata
+vim ~/.envswitch/environments/work/metadata.yaml
+
+# Add environment variables:
+environment_variables:
+  API_KEY: ""
+  DATABASE_URL: ""
+  DEBUG: ""
+
+# Next switch will capture these variables
+envswitch switch personal
+envswitch switch work  # Variables are restored!
+```
+
+### View Switch History
+
+```bash
+# Show recent switches
+envswitch history
+
+# Show last 5 switches
+envswitch history --limit 5
+
+# Show with timing information
+envswitch history --detailed
+```
+
+### Rollback to Previous Environment
+
+```bash
+# Undo last switch
+envswitch rollback
+
+# Rollback to specific history entry
+envswitch rollback --to 3
+```
+
+### Compare Environments
+
+```bash
+# Compare two environments
+envswitch diff work personal
+
+# Shows differences in:
+# - Tool configurations
+# - Environment variables
+# - Metadata
 ```
 
 ### Delete an Environment
 
 ```bash
+# Delete with archive (default)
 envswitch delete old-env
-# or with force
-envswitch rm old-env --force
+
+# Force delete without confirmation
+envswitch delete old-env --force
+
+# Delete without creating archive
+envswitch delete old-env --no-archive
 ```
 
-## What's Next?
+**Note:** Deleted environments are automatically archived to `~/.envswitch/archives/` unless `--no-archive` is used.
 
-- Read the [full documentation](./README.md)
-- Learn about [hooks and automation](./HOOKS.md)
-- Configure [shell integration](./SHELL_INTEGRATION.md)
-- Explore [advanced features](./ADVANCED.md)
+### Restore Deleted Environment
+
+```bash
+# List archives
+envswitch archive list
+
+# Restore from archive
+envswitch archive restore old-env-20250106-120000.tar.gz
+```
+
+## Configuration
+
+### View Configuration
+
+```bash
+# List all config
+envswitch config list
+
+# Get specific value
+envswitch config get log_level
+```
+
+### Set Configuration
+
+```bash
+# Set auto-save behavior
+envswitch config set auto_save_before_switch true
+
+# Set backup retention (number of backups to keep)
+envswitch config set backup_retention 10
+
+# Enable verification after switch
+envswitch config set verify_after_switch true
+
+# Set log level (debug, info, warn, error)
+envswitch config set log_level info
+
+# Enable color output
+envswitch config set color_output true
+
+# Customize prompt
+envswitch config set prompt_format "[{env}] "
+envswitch config set prompt_color cyan
+
+# Exclude tools from snapshots
+envswitch config set exclude_tools docker,git
+```
+
+### Configuration File
+
+Edit `~/.envswitch/config.yaml` directly:
+
+```yaml
+version: "1.0"
+auto_save_before_switch: "prompt" # true, false, or prompt
+verify_after_switch: false
+backup_retention: 10
+log_level: info
+log_file: ~/.envswitch/envswitch.log
+color_output: true
+show_timestamps: true
+
+# Shell integration
+enable_prompt_integration: true
+prompt_format: "({env}) "
+prompt_color: green
+
+# Tool exclusions
+exclude_tools: []
+exclude_patterns:
+  - "**/*.log"
+  - "**/*.tmp"
+```
+
+## Advanced Features
+
+### Pre/Post Switch Hooks
+
+Add custom commands to run before/after switching:
+
+```bash
+# Edit environment metadata
+vim ~/.envswitch/environments/work/metadata.yaml
+
+# Add hooks:
+hooks:
+  pre_switch:
+    - command: "echo Switching to work environment"
+    - script: "./scripts/pre-switch.sh"
+      verify: true
+
+  post_switch:
+    - command: "kubectl config current-context"
+    - command: "gcloud config get-value project"
+```
+
+### Dry Run Mode
+
+Preview what would happen without making changes:
+
+```bash
+envswitch switch work --dry-run
+```
+
+### Verification
+
+Verify environment after switching:
+
+```bash
+# One-time verification
+envswitch switch work --verify
+
+# Always verify (in config)
+envswitch config set verify_after_switch true
+```
 
 ## Troubleshooting
 
-### Environment not switching?
+### Check Version
 
-EnvSwitch is in early development. The full snapshot/restore functionality is being implemented. Currently:
-- ✅ Environment creation works
-- ✅ Environment listing works
-- 🚧 Snapshot capture is in progress
-- 🚧 Full switching logic is in progress
+```bash
+envswitch --version
+# Shows: version, git commit, build date
+```
 
-### Want to contribute?
+### View Logs
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for how to help build EnvSwitch!
+```bash
+# Default log location
+tail -f ~/.envswitch/envswitch.log
+
+# Enable debug logging
+envswitch config set log_level debug
+```
+
+### Common Issues
+
+**Environment not switching?**
+
+- ✅ All core functionality is implemented
+- ✅ Full snapshot/restore works for all 5 tools
+- ✅ Environment variables capture/restore works
+- ✅ Hooks system works
+- ✅ History and rollback work
+
+**Missing tool configurations?**
+
+- Some tools may not have active configurations
+- Check tool status with `envswitch show <env-name>`
+- Only enabled tools are snapshotted
+
+**Shell prompt not updating?**
+
+- Make sure you ran `envswitch shell install`
+- Reload your shell: `source ~/.bashrc` (or .zshrc)
+- Check config: `envswitch config get enable_prompt_integration`
+
+## What's Next?
+
+- 📖 Read the [full documentation](../README.md)
+- 🚀 Check out [versioning system](../VERSIONING.md)
+- 🐛 [Report issues](https://github.com/hugofrely/envswitch/issues)
+- 💬 [Join discussions](https://github.com/hugofrely/envswitch/discussions)
 
 ## Getting Help
 
-- 📖 [Full Documentation](../README.md)
-- 🐛 [Report Issues](https://github.com/hugofrely/envswitch/issues)
-- 💬 [Discussions](https://github.com/hugofrely/envswitch/discussions)
+- 📖 **Full Documentation**: See [README.md](../README.md)
+- 🐛 **Report Issues**: [GitHub Issues](https://github.com/hugofrely/envswitch/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/hugofrely/envswitch/discussions)
+- 📝 **Project Status**: See [PROJECT_STATUS.md](../PROJECT_STATUS.md)
+
+## Project Status
+
+- ✅ **Phase 1 (MVP)**: COMPLETED
+
+  - All 5 tools implemented (gcloud, kubectl, aws, docker, git)
+  - Full switching logic with snapshot/restore
+  - Configuration system
+  - History and rollback
+  - Hooks system
+  - Archive system
+
+- ✅ **Phase 2 (Essential Features)**: COMPLETED
+
+  - Environment variables handling
+  - Shell integration (bash, zsh, fish)
+  - Auto-completion
+  - Prompt customization
+
+- 🚧 **Phase 3 (Advanced Features)**: NEXT
+  - Encryption support
+  - TUI (Terminal UI)
+  - Template system
+  - Git sync
+  - Plugin system
+
+## Contributing
+
+Want to help make EnvSwitch better? See [CONTRIBUTING.md](../CONTRIBUTING.md)!
+
+---
+
+**Happy switching! 🚀**

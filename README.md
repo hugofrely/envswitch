@@ -59,13 +59,16 @@ One command. Everything restored. **Instantly.**
 ## ✨ Features
 
 ### 🎯 **Environment Management**
+
 - Create unlimited environment snapshots
 - Clone environments for quick variations
 - Tag and organize environments
 - Delete old environments safely
 
 ### 📸 **Comprehensive Snapshots**
+
 Captures complete state of:
+
 - **GCloud CLI** - Authentication, projects, configurations
 - **Kubectl** - Contexts, clusters, namespaces, configs
 - **AWS CLI** - Profiles, credentials, regions
@@ -74,6 +77,7 @@ Captures complete state of:
 - **Environment Variables** - Custom variables per environment
 
 ### 🔄 **Smart Switching**
+
 - Automatic backup before switch
 - Atomic operations (all or nothing)
 - Rollback on failure
@@ -81,12 +85,14 @@ Captures complete state of:
 - History tracking
 
 ### 🛡️ **Safety First**
+
 - Automatic backups before every switch
 - Dry-run mode to preview changes
 - Diff to see what would change
 - Never lose your configurations
 
 ### 🎨 **Developer Experience**
+
 - Beautiful CLI output
 - Shell integration (prompt indicator)
 - Auto-completion (bash/zsh/fish)
@@ -99,13 +105,25 @@ Captures complete state of:
 
 ### Installation
 
-#### Option 1: Go Install (Recommended)
+#### Option 1: Install Script (Recommended for macOS/Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hugofrely/envswitch/main/install.sh | bash
+```
+
+Or with wget:
+
+```bash
+wget -qO- https://raw.githubusercontent.com/hugofrely/envswitch/main/install.sh | bash
+```
+
+#### Option 2: Go Install
 
 ```bash
 go install github.com/hugofrely/envswitch@latest
 ```
 
-#### Option 2: Build from Source
+#### Option 3: Build from Source
 
 ```bash
 git clone https://github.com/hugofrely/envswitch.git
@@ -113,7 +131,7 @@ cd envswitch
 make install
 ```
 
-#### Option 3: Download Binary
+#### Option 4: Download Binary
 
 Download the latest release from [GitHub Releases](https://github.com/hugofrely/envswitch/releases).
 
@@ -228,18 +246,19 @@ envswitch rm myenv --force
 
 ## 🛠️ Supported Tools
 
-| Tool | Status | What's Captured |
-|------|--------|-----------------|
+| Tool           | Status         | What's Captured                                                 |
+| -------------- | -------------- | --------------------------------------------------------------- |
 | **GCloud CLI** | 🚧 In Progress | Authentication, active account, project, region, configurations |
-| **Kubectl** | 🚧 In Progress | Contexts, clusters, current namespace, kubeconfig |
-| **AWS CLI** | 🚧 In Progress | Profiles, credentials, default region, config |
-| **Docker** | 🚧 In Progress | Registry authentication, config.json |
-| **Git** | 🚧 In Progress | User name, email, signing keys |
-| **Azure CLI** | 📅 Planned | Authentication, subscriptions, defaults |
-| **Terraform** | 📅 Planned | Workspaces, backend config |
-| **SSH** | 📅 Planned | SSH keys, config |
+| **Kubectl**    | 🚧 In Progress | Contexts, clusters, current namespace, kubeconfig               |
+| **AWS CLI**    | 🚧 In Progress | Profiles, credentials, default region, config                   |
+| **Docker**     | 🚧 In Progress | Registry authentication, config.json                            |
+| **Git**        | 🚧 In Progress | User name, email, signing keys                                  |
+| **Azure CLI**  | 📅 Planned     | Authentication, subscriptions, defaults                         |
+| **Terraform**  | 📅 Planned     | Workspaces, backend config                                      |
+| **SSH**        | 📅 Planned     | SSH keys, config                                                |
 
 **Legend:**
+
 - ✅ Implemented
 - 🚧 In Progress
 - 📅 Planned
@@ -292,37 +311,37 @@ Global config at `~/.envswitch/config.yaml`:
 
 ```yaml
 # Behavior
-auto_save_before_switch: true      # Auto-save before switching
-verify_after_switch: false         # Verify connectivity after switch
-backup_retention: 10               # Keep last 10 auto-backups
+auto_save_before_switch: true # Auto-save before switching
+verify_after_switch: false # Verify connectivity after switch
+backup_retention: 10 # Keep last 10 auto-backups
 
 # UI
-color_output: true                 # Colored output
-show_timestamps: true              # Show timestamps in output
-default_editor: vim                # Editor for editing configs
+color_output: true # Colored output
+show_timestamps: true # Show timestamps in output
+default_editor: vim # Editor for editing configs
 
 # Shell Integration
-enable_prompt_integration: true    # Show env in prompt
-prompt_format: "({name})"          # Format: (work)
-prompt_color: blue                 # Prompt color
+enable_prompt_integration: true # Show env in prompt
+prompt_format: "({name})" # Format: (work)
+prompt_color: blue # Prompt color
 
 # Logging
-log_level: info                    # debug, info, warn, error
+log_level: info # debug, info, warn, error
 log_file: ~/.envswitch/envswitch.log
 
 # Security
-encryption_enabled: false          # Encrypt snapshots
-encryption_use_keyring: true       # Use system keyring
+encryption_enabled: false # Encrypt snapshots
+encryption_use_keyring: true # Use system keyring
 
 # Filters
-exclude_patterns:                  # Don't snapshot these
+exclude_patterns: # Don't snapshot these
   - "**/*.log"
   - "**/*.tmp"
-exclude_tools: []                  # Skip specific tools
+exclude_tools: [] # Skip specific tools
 
 # Sync (Future)
-auto_sync: false                   # Auto-sync to git
-sync_provider: git                 # git, s3, dropbox
+auto_sync: false # Auto-sync to git
+sync_provider: git # git, s3, dropbox
 ```
 
 ---
@@ -419,6 +438,7 @@ envswitch switch prod --verify
 This project is in **early development**. Core features are being implemented.
 
 **What Works:**
+
 - ✅ Environment creation
 - ✅ Environment listing
 - ✅ Environment deletion
@@ -426,12 +446,14 @@ This project is in **early development**. Core features are being implemented.
 - ✅ Configuration system
 
 **In Progress (MVP):**
+
 - 🚧 Tool snapshot capture
 - 🚧 Environment switching
 - 🚧 Backup system
 - 🚧 Environment variables
 
 **Planned:**
+
 - 📅 History and rollback
 - 📅 Shell integration
 - 📅 Auto-completion
@@ -449,6 +471,7 @@ See [PROJECT_STATUS.md](PROJECT_STATUS.md) for detailed roadmap.
 We'd love your help! EnvSwitch is open source and welcoming contributors.
 
 **Ways to contribute:**
+
 - 🐛 Report bugs
 - 💡 Suggest features
 - 📝 Improve documentation
@@ -456,11 +479,13 @@ We'd love your help! EnvSwitch is open source and welcoming contributors.
 - ⭐ Star the project
 
 **Getting started:**
+
 1. Read [CONTRIBUTING.md](CONTRIBUTING.md)
 2. Check [good first issues](https://github.com/hugofrely/envswitch/labels/good%20first%20issue)
 3. Read [GETTING_STARTED.md](GETTING_STARTED.md) for dev setup
 
 **High-priority help needed:**
+
 - Implementing tool integrations (GCloud, Kubectl, AWS, Docker, Git)
 - Writing tests
 - Documentation and examples
@@ -480,6 +505,7 @@ We'd love your help! EnvSwitch is open source and welcoming contributors.
 ## 🙏 Acknowledgments
 
 Inspired by:
+
 - **nvm** - Node version management done right
 - **rbenv** - Ruby environment management
 - **direnv** - Directory-based environments
