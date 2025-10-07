@@ -15,11 +15,26 @@ import (
 // 4. Run: envswitch create perso --from-current (should auto-switch)
 // 5. Verify both environments have their correct snapshots
 func TestCreateWorkflowIntegration(t *testing.T) {
+	// This test cannot run in parallel due to global flag manipulation
+	// and HOME environment variable changes
+
 	// Setup test environment
 	originalHome := os.Getenv("HOME")
 	tempHome := t.TempDir()
 	os.Setenv("HOME", tempHome)
 	defer os.Setenv("HOME", originalHome)
+
+	// Save and restore global flags
+	origCreateFromCurrent := createFromCurrent
+	origCreateEmpty := createEmpty
+	origCreateFrom := createFrom
+	origCreateDescription := createDescription
+	defer func() {
+		createFromCurrent = origCreateFromCurrent
+		createEmpty = origCreateEmpty
+		createFrom = origCreateFrom
+		createDescription = origCreateDescription
+	}()
 
 	// Create .kube directory
 	kubeDir := filepath.Join(tempHome, ".kube")

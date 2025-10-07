@@ -288,6 +288,9 @@ func TestSaveCommand(t *testing.T) {
 }
 
 func TestSaveIntegration(t *testing.T) {
+	// This test cannot run in parallel due to global flag manipulation
+	// and HOME environment variable changes
+
 	// Create a temporary directory for testing
 	tempHome := t.TempDir()
 
@@ -298,6 +301,18 @@ func TestSaveIntegration(t *testing.T) {
 	})
 
 	os.Setenv("HOME", tempHome)
+
+	// Save and restore global flags
+	origCreateFromCurrent := createFromCurrent
+	origCreateEmpty := createEmpty
+	origCreateFrom := createFrom
+	origCreateDescription := createDescription
+	defer func() {
+		createFromCurrent = origCreateFromCurrent
+		createEmpty = origCreateEmpty
+		createFrom = origCreateFrom
+		createDescription = origCreateDescription
+	}()
 
 	// Initialize envswitch
 	envswitchDir := filepath.Join(tempHome, ".envswitch")
