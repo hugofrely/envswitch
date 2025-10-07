@@ -66,11 +66,10 @@ EnvSwitch is a CLI tool that captures, saves, and restores the complete state of
 - [x] Shell integration (prompt)
 - [x] Auto-completion (bash/zsh/fish)
 
-### 🚧 Phase 3: Advanced Features (NEXT)
+### ✅ Phase 3: Advanced Features (COMPLETED)
 
-- [ ] TUI (Terminal UI)
-- [ ] Import/Export
-- [ ] Plugin system
+- [x] Import/Export - Backup and restore environments with tar.gz archives
+- [x] Plugin system - Extensible architecture for additional tools
 
 ## 📁 Project Structure
 
@@ -88,12 +87,17 @@ envswitch/
 │   ├── history.go            ✅ History tracking
 │   ├── shell.go              ✅ Shell integration (Phase 2)
 │   ├── completion.go         ✅ Auto-completion (Phase 2)
-│   └── completion_helpers.go ✅ Completion functions
+│   ├── completion_helpers.go ✅ Completion functions
+│   ├── export.go             ✅ Export command (Phase 3)
+│   ├── import.go             ✅ Import command (Phase 3)
+│   └── plugin.go             ✅ Plugin management (Phase 3)
 │
 ├── pkg/
 │   ├── environment/          ✅ Complete environment management
 │   │   ├── environment.go    ✅ Environment model
 │   │   └── envvars.go        ✅ Environment variables (Phase 2)
+│   ├── plugin/               ✅ Plugin system (Phase 3)
+│   │   └── plugin.go         ✅ Plugin interface & management
 │   └── tools/                ✅ All 5 tools implemented
 │       ├── tool.go           ✅ Tool interface
 │       ├── gcloud.go         ✅ GCloud (complete)
@@ -106,7 +110,9 @@ envswitch/
 │   ├── storage/              ✅ File operations
 │   ├── history/              ✅ History tracking
 │   ├── hooks/                ✅ Pre/post hooks
-│   ├── archive/              ✅ Environment archiving
+│   ├── archive/              ✅ Import/Export (Phase 3)
+│   │   ├── export.go         ✅ Environment export
+│   │   └── import.go         ✅ Environment import
 │   ├── config/               ✅ Configuration system
 │   ├── logger/               ✅ Logging system (Phase 1)
 │   ├── output/               ✅ Output formatting (Phase 1)
@@ -167,15 +173,13 @@ The MVP is feature-complete! The following tasks remain:
 
 ## 📝 Current Limitations & Future Enhancements
 
-1. **No encryption** - Sensitive data in snapshots not yet protected (Phase 3)
-2. **No environment variables** - Environment variable capture not yet implemented (Phase 2)
-3. **No shell integration** - Prompt integration not yet available (Phase 2)
-4. **No auto-completion** - Shell auto-completion not yet implemented (Phase 2)
-5. **Manual testing needed** - Real-world usage testing required before v1.0
+1. **No encryption** - Sensitive data in snapshots not yet protected (Future Phase)
+2. **Manual testing needed** - Real-world usage testing required before v1.0
+3. **Plugin ecosystem** - Need to build community plugins for additional tools
 
 ## 🤝 How to Contribute
 
-The MVP is complete! We now need help with:
+All major features are complete! We now need help with:
 
 1. **Testing & Feedback**
 
@@ -183,17 +187,18 @@ The MVP is complete! We now need help with:
    - Bug reports and edge cases
    - UX feedback and suggestions
 
-2. **Phase 2 Development**
+2. **Plugin Development**
 
-   - Environment variables handling
-   - Shell integration (bash/zsh/fish)
-   - Auto-completion
+   - Create plugins for additional tools (Terraform, Ansible, etc.)
+   - Share plugins with the community
+   - Improve plugin system
 
 3. **Documentation**
 
    - Usage examples and tutorials
    - Video walkthroughs
    - Best practices guide
+   - Plugin development guide
 
 4. **Community Building**
    - Spread the word
@@ -214,4 +219,9 @@ MIT License - see [LICENSE](LICENSE) file
 
 ---
 
-**Note:** The MVP is complete and ready for testing! While not yet production-ready, all core features are functional. Try it out and provide feedback!
+**Note:** All Phase 3 features are complete! EnvSwitch now includes:
+
+- ✅ Import/Export for backup and sharing
+- ✅ Plugin system for extensibility
+
+The project is feature-complete and ready for production testing!

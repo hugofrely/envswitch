@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 
 	"github.com/hugofrely/envswitch/internal/archive"
@@ -16,7 +17,12 @@ import (
 	"github.com/hugofrely/envswitch/internal/hooks"
 	"github.com/hugofrely/envswitch/internal/logger"
 	"github.com/hugofrely/envswitch/pkg/environment"
+	"github.com/hugofrely/envswitch/pkg/plugin"
 	"github.com/hugofrely/envswitch/pkg/tools"
+)
+
+const (
+	debugLogLevel = "debug"
 )
 
 var (
@@ -52,6 +58,13 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		logger.Warn("Failed to load config, using defaults: %v", err)
 		cfg = config.DefaultConfig()
+	}
+
+	// Override log level if verbose or debug flags are set
+	if debug {
+		cfg.LogLevel = debugLogLevel
+	} else if verbose {
+		cfg.LogLevel = debugLogLevel
 	}
 
 	// Initialize logger and output
@@ -121,8 +134,11 @@ func performSwitch(currentEnv *environment.Environment, targetName, fromName str
 	}
 
 	logger.Info("Switching from '%s' to '%s'", fromName, targetName)
-	fmt.Printf("🔄 Switching from '%s' to '%s'...\n", fromName, targetName)
-	fmt.Println()
+
+	// Create and start spinner
+	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+	s.Suffix = fmt.Sprintf(" Switching from '%s' to '%s'...", fromName, targetName)
+	s.Start()
 
 	historyEntry := history.SwitchEntry{
 		Timestamp: startTime,
@@ -131,49 +147,64 @@ func performSwitch(currentEnv *environment.Environment, targetName, fromName str
 		Success:   false,
 	}
 
-	backupPath, err := createBackup(currentEnv, &historyEntry)
+	backupPath, err := createBackup(currentEnv, &historyEntry, cfg)
 	if err != nil {
+		s.Stop()
 		return err
 	}
 
 	if saveErr := saveCurrentState(currentEnv); saveErr != nil {
+		s.Stop()
 		return saveErr
 	}
 
 	if hookErr := executePreSwitchHooks(targetEnv, targetName, &historyEntry, startTime); hookErr != nil {
+		s.Stop()
 		return hookErr
 	}
 
 	toolCount, err := restoreTargetState(targetEnv, &historyEntry, startTime)
 	if err != nil {
+		s.Stop()
 		return err
 	}
 	historyEntry.ToolsCount = toolCount
 
 	executePostSwitchHooks(targetEnv, targetName)
 
-	if err := finalizeSwitch(targetEnv, targetName, &historyEntry, startTime, backupPath); err != nil {
+	if err := finalizeSwitch(targetEnv, targetName, &historyEntry, startTime, backupPath, s); err != nil {
+		s.Stop()
 		return err
 	}
 
 	return nil
 }
 
-func createBackup(currentEnv *environment.Environment, entry *history.SwitchEntry) (string, error) {
-	if currentEnv == nil || switchNoBackup {
+func createBackup(currentEnv *environment.Environment, entry *history.SwitchEntry, cfg *config.Config) (string, error) {
+	if currentEnv == nil {
 		return "", nil
 	}
 
-	fmt.Println("📦 Creating security backup...")
+	// Check if backup is disabled via flag or config
+	if switchNoBackup || !cfg.BackupBeforeSwitch {
+		if switchNoBackup {
+			logger.Debug("Backup skipped via --no-backup flag")
+		} else {
+			logger.Debug("Backup disabled in configuration")
+		}
+		return "", nil
+	}
+
+	logger.Debug("Creating security backup...")
 	backup, backupErr := archive.ArchiveEnvironment(currentEnv)
 	if backupErr != nil {
-		fmt.Printf("⚠️  Warning: Failed to create backup: %v\n", backupErr)
-		fmt.Println("   Proceeding with switch...")
+		logger.Warn("Failed to create backup: %v", backupErr)
+		logger.Debug("Proceeding with switch...")
 		return "", nil
 	}
 
 	entry.BackupPath = backup.Path
-	fmt.Printf("✓ Backup created: %s\n\n", filepath.Base(backup.Path))
+	logger.Debug("Backup created: %s", filepath.Base(backup.Path))
 	return backup.Path, nil
 }
 
@@ -182,12 +213,11 @@ func saveCurrentState(currentEnv *environment.Environment) error {
 		return nil
 	}
 
-	fmt.Println("💾 Saving current state...")
+	logger.Debug("Saving current state...")
 	if err := snapshotCurrentEnvironment(currentEnv); err != nil {
 		return fmt.Errorf("failed to save current state: %w", err)
 	}
-	fmt.Println("✓ Current state saved")
-	fmt.Println()
+	logger.Debug("Current state saved")
 	return nil
 }
 
@@ -196,19 +226,18 @@ func executePreSwitchHooks(targetEnv *environment.Environment, targetName string
 		return nil
 	}
 
-	fmt.Println("🔧 Running pre-switch hooks...")
+	logger.Debug("Running pre-switch hooks...")
 	if err := hooks.ExecuteHooks(targetEnv.Hooks.PreSwitch, targetName); err != nil {
 		entry.ErrorMsg = fmt.Sprintf("pre-switch hook failed: %v", err)
 		entry.DurationMs = time.Since(startTime).Milliseconds()
 		recordHistory(entry)
 		return fmt.Errorf("pre-switch hook failed: %w", err)
 	}
-	fmt.Println()
 	return nil
 }
 
 func restoreTargetState(targetEnv *environment.Environment, entry *history.SwitchEntry, startTime time.Time) (int, error) {
-	fmt.Println("🔄 Restoring target environment state...")
+	logger.Debug("Restoring target environment state...")
 	toolCount, err := restoreEnvironment(targetEnv)
 	if err != nil {
 		entry.ErrorMsg = fmt.Sprintf("restore failed: %v", err)
@@ -216,7 +245,7 @@ func restoreTargetState(targetEnv *environment.Environment, entry *history.Switc
 		recordHistory(entry)
 		return 0, fmt.Errorf("failed to restore target state: %w", err)
 	}
-	fmt.Printf("✓ Restored %d tool(s)\n\n", toolCount)
+	logger.Debug("Restored %d tool(s)", toolCount)
 	return toolCount, nil
 }
 
@@ -225,14 +254,13 @@ func executePostSwitchHooks(targetEnv *environment.Environment, targetName strin
 		return
 	}
 
-	fmt.Println("🔧 Running post-switch hooks...")
+	logger.Debug("Running post-switch hooks...")
 	if err := hooks.ExecuteHooks(targetEnv.Hooks.PostSwitch, targetName); err != nil {
-		fmt.Printf("⚠️  Warning: Post-switch hook failed: %v\n", err)
+		logger.Warn("Post-switch hook failed: %v", err)
 	}
-	fmt.Println()
 }
 
-func finalizeSwitch(targetEnv *environment.Environment, targetName string, entry *history.SwitchEntry, startTime time.Time, backupPath string) error {
+func finalizeSwitch(targetEnv *environment.Environment, targetName string, entry *history.SwitchEntry, startTime time.Time, backupPath string, s *spinner.Spinner) error {
 	// Load config for verification settings
 	cfg, _ := config.LoadConfig()
 	if cfg == nil {
@@ -245,18 +273,20 @@ func finalizeSwitch(targetEnv *environment.Environment, targetName string, entry
 
 	targetEnv.LastUsed = time.Now()
 	if err := targetEnv.Save(); err != nil {
-		fmt.Printf("⚠️  Warning: Failed to update environment metadata: %v\n", err)
+		logger.Warn("Failed to update environment metadata: %v", err)
 	}
 
 	entry.Success = true
 	entry.DurationMs = time.Since(startTime).Milliseconds()
 	recordHistory(entry)
 
+	// Stop spinner and show success message
+	s.Stop()
 	fmt.Printf("✅ Successfully switched to '%s' (%.2fs)\n", targetName, time.Since(startTime).Seconds())
 	logger.Info("Successfully switched to '%s' in %.2fs", targetName, time.Since(startTime).Seconds())
 
 	if backupPath != "" {
-		fmt.Printf("   Backup: %s\n", filepath.Base(backupPath))
+		logger.Debug("Backup: %s", filepath.Base(backupPath))
 	}
 
 	// Cleanup old backups based on retention policy
@@ -291,19 +321,19 @@ func snapshotCurrentEnvironment(env *environment.Environment) error {
 
 		tool, exists := toolRegistry[toolName]
 		if !exists {
-			fmt.Printf("  ⚠️  Unknown tool '%s', skipping\n", toolName)
+			logger.Debug("Unknown tool '%s', skipping", toolName)
 			continue
 		}
 
 		snapshotPath := filepath.Join(env.Path, "snapshots", toolName)
 		if err := os.MkdirAll(snapshotPath, 0755); err != nil {
-			fmt.Printf("  ⚠️  Failed to create snapshot directory for %s: %v, skipping\n", toolName, err)
+			logger.Warn("Failed to create snapshot directory for %s: %v, skipping", toolName, err)
 			continue
 		}
 
-		fmt.Printf("  Snapshotting %s...\n", toolName)
+		logger.Debug("Snapshotting %s...", toolName)
 		if err := tool.Snapshot(snapshotPath); err != nil {
-			fmt.Printf("  ⚠️  Failed to snapshot %s: %v, skipping\n", toolName, err)
+			logger.Warn("Failed to snapshot %s: %v, skipping", toolName, err)
 			continue
 		}
 
@@ -315,7 +345,7 @@ func snapshotCurrentEnvironment(env *environment.Environment) error {
 
 	// Capture and save environment variables if configured
 	if len(env.EnvVars) > 0 {
-		fmt.Println("  Capturing environment variables...")
+		logger.Debug("Capturing environment variables...")
 		varNames := make([]string, 0, len(env.EnvVars))
 		for varName := range env.EnvVars {
 			varNames = append(varNames, varName)
@@ -323,12 +353,12 @@ func snapshotCurrentEnvironment(env *environment.Environment) error {
 
 		capturedVars, captureErr := environment.CaptureEnvVars(varNames)
 		if captureErr != nil {
-			fmt.Printf("  ⚠️  Failed to capture environment variables: %v\n", captureErr)
+			logger.Warn("Failed to capture environment variables: %v", captureErr)
 		} else {
 			if saveErr := env.SaveEnvVars(capturedVars); saveErr != nil {
-				fmt.Printf("  ⚠️  Failed to save environment variables: %v\n", saveErr)
+				logger.Warn("Failed to save environment variables: %v", saveErr)
 			} else {
-				fmt.Printf("  ✓ Captured %d environment variable(s)\n", len(capturedVars))
+				logger.Debug("Captured %d environment variable(s)", len(capturedVars))
 			}
 		}
 	}
@@ -351,7 +381,7 @@ func restoreEnvironment(env *environment.Environment) (int, error) {
 
 		tool, exists := toolRegistry[toolName]
 		if !exists {
-			fmt.Printf("  ⚠️  Unknown tool '%s', skipping\n", toolName)
+			logger.Debug("Unknown tool '%s', skipping", toolName)
 			continue
 		}
 
@@ -359,19 +389,19 @@ func restoreEnvironment(env *environment.Environment) (int, error) {
 
 		// Check if snapshot exists and is valid
 		if _, err := os.Stat(snapshotPath); os.IsNotExist(err) {
-			fmt.Printf("  ⚠️  No snapshot found for %s, skipping\n", toolName)
+			logger.Warn("No snapshot found for %s, skipping", toolName)
 			continue
 		}
 
 		// Validate snapshot before restoring
 		if err := tool.ValidateSnapshot(snapshotPath); err != nil {
-			fmt.Printf("  ⚠️  Invalid snapshot for %s: %v, skipping\n", toolName, err)
+			logger.Warn("Invalid snapshot for %s: %v, skipping", toolName, err)
 			continue
 		}
 
-		fmt.Printf("  Restoring %s...\n", toolName)
+		logger.Debug("Restoring %s...", toolName)
 		if err := tool.Restore(snapshotPath); err != nil {
-			fmt.Printf("  ⚠️  Failed to restore %s: %v, skipping\n", toolName, err)
+			logger.Warn("Failed to restore %s: %v, skipping", toolName, err)
 			continue
 		}
 		restoredCount++
@@ -380,13 +410,13 @@ func restoreEnvironment(env *environment.Environment) (int, error) {
 	// Restore environment variables if available
 	envVars, loadErr := env.LoadEnvVars()
 	if loadErr != nil {
-		fmt.Printf("  ⚠️  Failed to load environment variables: %v\n", loadErr)
+		logger.Warn("Failed to load environment variables: %v", loadErr)
 	} else if len(envVars) > 0 {
-		fmt.Println("  Restoring environment variables...")
+		logger.Debug("Restoring environment variables...")
 		if restoreErr := environment.RestoreEnvVars(envVars); restoreErr != nil {
-			fmt.Printf("  ⚠️  Failed to restore environment variables: %v\n", restoreErr)
+			logger.Warn("Failed to restore environment variables: %v", restoreErr)
 		} else {
-			fmt.Printf("  ✓ Restored %d environment variable(s)\n", len(envVars))
+			logger.Debug("Restored %d environment variable(s)", len(envVars))
 		}
 	}
 
@@ -439,6 +469,9 @@ func getToolRegistry() map[string]tools.Tool {
 		"docker":  tools.NewDockerTool(),
 	}
 
+	// Load plugins and add them as generic tools
+	loadPluginsIntoRegistry(allTools)
+
 	// Load config to check for excluded tools
 	cfg, err := config.LoadConfig()
 	if err != nil || cfg == nil || len(cfg.ExcludeTools) == 0 {
@@ -462,4 +495,64 @@ func getToolRegistry() map[string]tools.Tool {
 	}
 
 	return filteredTools
+}
+
+// loadPluginsIntoRegistry charge les plugins installés et les ajoute au registre
+func loadPluginsIntoRegistry(registry map[string]tools.Tool) {
+	plugins, err := plugin.ListInstalledPlugins()
+	if err != nil {
+		logger.Debug("Failed to load plugins: %v", err)
+		return
+	}
+
+	home, _ := os.UserHomeDir()
+
+	for _, p := range plugins {
+		toolName := p.Metadata.ToolName
+
+		// Cas 1: Multiple paths (config_paths)
+		if len(p.Metadata.ConfigPaths) > 0 {
+			// Expand environment variables in all paths
+			expandedPaths := make([]string, len(p.Metadata.ConfigPaths))
+			for i, path := range p.Metadata.ConfigPaths {
+				expandedPaths[i] = os.ExpandEnv(path)
+			}
+			logger.Debug("Using multiple config paths for '%s': %v", toolName, expandedPaths)
+			registry[toolName] = tools.NewMultiPathTool(toolName, expandedPaths)
+		} else {
+			// Cas 2: Single path (config_path or auto-detected)
+			var configPath string
+			if p.Metadata.ConfigPath != "" {
+				// Utiliser le chemin custom fourni dans plugin.yaml
+				configPath = os.ExpandEnv(p.Metadata.ConfigPath)
+				logger.Debug("Using custom config path for '%s': %s", toolName, configPath)
+			} else {
+				// Auto-détection basée sur le nom de l'outil
+				configPath = getConfigPathForTool(home, toolName)
+				logger.Debug("Using auto-detected config path for '%s': %s", toolName, configPath)
+			}
+
+			// Créer un GenericTool pour ce plugin
+			registry[toolName] = tools.NewGenericTool(toolName, configPath)
+		}
+
+		logger.Debug("Loaded plugin '%s' for tool '%s'", p.Metadata.Name, toolName)
+	}
+}
+
+// getConfigPathForTool retourne le chemin de config standard pour un outil
+// Cette fonction est un fallback pour les plugins qui ne spécifient pas config_path
+func getConfigPathForTool(home, toolName string) string {
+	// Convention par défaut: ~/.TOOLNAME ou ~/.TOOLNAMErc
+	// Les plugins devraient utiliser le champ config_path dans plugin.yaml
+	// pour des chemins spécifiques
+
+	// Essayer d'abord ~/.TOOLNAME (ex: ~/.vim, ~/.ssh)
+	dirPath := filepath.Join(home, "."+toolName)
+	if info, err := os.Stat(dirPath); err == nil && info.IsDir() {
+		return dirPath
+	}
+
+	// Sinon, utiliser ~/.TOOLNAMErc (ex: ~/.vimrc, ~/.npmrc)
+	return filepath.Join(home, "."+toolName+"rc")
 }

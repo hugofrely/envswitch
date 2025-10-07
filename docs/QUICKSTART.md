@@ -4,7 +4,20 @@ This guide will help you get started with EnvSwitch in 5 minutes.
 
 ## Installation
 
-### Option 1: Download Binary (Recommended)
+### Option 1: Install Script (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hugofrely/envswitch/main/install.sh | bash
+```
+
+This automatically:
+- Detects your platform (macOS/Linux)
+- Downloads and installs the latest version
+- Configures PATH
+- Optionally installs auto-completion (will prompt)
+- Sets up everything for you!
+
+### Option 2: Download Binary Manually
 
 Visit the [releases page](https://github.com/hugofrely/envswitch/releases/latest) and download the binary for your platform:
 
@@ -28,7 +41,7 @@ sudo mv envswitch-linux-amd64 /usr/local/bin/envswitch
 envswitch --version
 ```
 
-### Option 2: Install from Source (requires Go)
+### Option 3: Install from Source (requires Go)
 
 ```bash
 git clone https://github.com/hugofrely/envswitch.git
@@ -36,19 +49,7 @@ cd envswitch
 make install
 ```
 
-### Option 3: Install Script (Recommended)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/hugofrely/envswitch/main/install.sh | bash
-```
-
-This automatically:
-- Detects your platform
-- Installs the latest version
-- Configures PATH
-- **Optionally installs auto-completion** (will prompt)
-
-See [INSTALL.md](../INSTALL.md) for more options.
+See [INSTALL.md](../INSTALL.md) for more installation options.
 
 ## First Time Setup
 
@@ -92,6 +93,7 @@ Your prompt will now show the current environment: `(work) user@machine$`
 Auto-completion should already be installed (the installer prompts you).
 
 **If you installed manually:**
+
 ```bash
 # Bash
 envswitch completion bash > /usr/local/etc/bash_completion.d/envswitch
@@ -150,7 +152,7 @@ envswitch create personal --from-current --description "Personal projects"
 Now you can instantly switch between your work and personal environments:
 
 ```bash
-# Switch to work
+# Switch to work (shows loading spinner)
 envswitch switch work
 
 # Switch to personal
@@ -158,15 +160,27 @@ envswitch switch personal
 
 # Switch with verification
 envswitch switch work --verify
+
+# Skip backup during switch
+envswitch switch work --no-backup
+
+# Verbose mode (see detailed logs)
+envswitch switch work --verbose
 ```
 
 **What happens during a switch:**
 
-1. 📦 Creates backup of current environment (auto-archived)
-2. 💾 Saves current state to current environment
-3. 🔄 Restores target environment state
-4. ✅ Updates current.lock file
-5. 🧹 Cleans up old backups (based on `backup_retention` config)
+1. 🔄 Shows loading spinner with progress message
+2. 📦 Creates backup of current environment (if enabled in config)
+3. 💾 Saves current state to current environment
+4. 🔄 Restores target environment state
+5. ✅ Updates current.lock file and metadata
+6. 🧹 Cleans up old backups (based on `backup_retention` config)
+7. 📝 Records switch in history log
+
+**Output modes:**
+- **Normal mode**: Shows only success message and spinner
+- **Verbose mode** (`--verbose`): Shows detailed debug logs for all operations
 
 ## Common Workflows
 
@@ -221,36 +235,26 @@ envswitch switch work  # Variables are restored!
 ### View Switch History
 
 ```bash
-# Show recent switches
+# Show recent switches (default: last 10)
 envswitch history
 
 # Show last 5 switches
 envswitch history --limit 5
 
-# Show with timing information
-envswitch history --detailed
+# Show all history
+envswitch history --all
+
+# Show detailed view with full information
+envswitch history show
+
+# Clear history
+envswitch history clear
 ```
 
-### Rollback to Previous Environment
-
-```bash
-# Undo last switch
-envswitch rollback
-
-# Rollback to specific history entry
-envswitch rollback --to 3
+**History format:**
 ```
-
-### Compare Environments
-
-```bash
-# Compare two environments
-envswitch diff work personal
-
-# Shows differences in:
-# - Tool configurations
-# - Environment variables
-# - Metadata
+✅ 2025-10-06 19:36:07  personal → work  1.41s
+✅ 2025-10-06 18:22:15  work → personal  1.23s
 ```
 
 ### Delete an Environment
@@ -302,11 +306,17 @@ envswitch config set backup_retention 10
 # Enable verification after switch
 envswitch config set verify_after_switch true
 
-# Set log level (debug, info, warn, error)
-envswitch config set log_level info
+# Set log level (debug, info, warn, error) - default: warn
+envswitch config set log_level warn
+
+# Enable/disable backup before each switch (default: true)
+envswitch config set backup_before_switch true
 
 # Enable color output
 envswitch config set color_output true
+
+# Show timestamps in output
+envswitch config set show_timestamps false
 
 # Customize prompt
 envswitch config set prompt_format "[{env}] "
@@ -322,24 +332,22 @@ Edit `~/.envswitch/config.yaml` directly:
 
 ```yaml
 version: "1.0"
-auto_save_before_switch: "prompt" # true, false, or prompt
+auto_save_before_switch: true # true, false, or prompt
 verify_after_switch: false
 backup_retention: 10
-log_level: info
+backup_before_switch: true # Create backup before each switch
+log_level: warn # Default log level (debug, info, warn, error)
 log_file: ~/.envswitch/envswitch.log
 color_output: true
-show_timestamps: true
+show_timestamps: false
 
 # Shell integration
 enable_prompt_integration: true
-prompt_format: "({env}) "
-prompt_color: green
+prompt_format: "({name})"
+prompt_color: blue
 
 # Tool exclusions
-exclude_tools: []
-exclude_patterns:
-  - "**/*.log"
-  - "**/*.tmp"
+exclude_tools: [] # Skip specific tools
 ```
 
 ## Advanced Features
@@ -425,9 +433,64 @@ envswitch config set log_level debug
 - Reload your shell: `source ~/.bashrc` (or .zshrc)
 - Check config: `envswitch config get enable_prompt_integration`
 
+## Plugin System
+
+Want to add support for new tools like npm, terraform, or pip? EnvSwitch makes it incredibly simple!
+
+### Creating a Plugin (2 minutes, no code required!)
+
+Most plugins need **zero Go code**—just a simple YAML file:
+
+```bash
+# 1. Create plugin directory
+mkdir my-tool-plugin
+cd my-tool-plugin
+
+# 2. Create plugin.yaml
+cat > plugin.yaml << 'EOF'
+metadata:
+  name: my-tool
+  version: 1.0.0
+  description: Support for my-tool
+  tool_name: my-tool
+  author: Your Name
+EOF
+
+# 3. Install plugin
+envswitch plugin install .
+```
+
+**That's it!** The plugin is automatically:
+- ✅ Installed
+- ✅ Activated in ALL your environments
+- ✅ Capturing config during every switch
+
+EnvSwitch automatically detects config file locations:
+- `npm` → `~/.npmrc`
+- `yarn` → `~/.yarnrc`
+- `pip` → `~/.pip/pip.conf`
+- `terraform` → `~/.terraform.d/`
+- Custom tools → `~/.TOOLNAME` or `~/.TOOLNAMErc`
+
+### Managing Plugins
+
+```bash
+# List installed plugins
+envswitch plugin list
+
+# Show plugin details
+envswitch plugin info npm
+
+# Remove plugin
+envswitch plugin remove npm
+```
+
+📖 **Full plugin guide**: See [Plugin Documentation](../docs/PLUGINS.md) for complete examples and advanced features.
+
 ## What's Next?
 
 - 📖 Read the [full documentation](../README.md)
+- 🔌 Create your own plugins with [Plugin Documentation](../docs/PLUGINS.md)
 - 🚀 Check out [versioning system](../VERSIONING.md)
 - 🐛 [Report issues](https://github.com/hugofrely/envswitch/issues)
 - 💬 [Join discussions](https://github.com/hugofrely/envswitch/discussions)
@@ -443,12 +506,13 @@ envswitch config set log_level debug
 
 - ✅ **Phase 1 (MVP)**: COMPLETED
 
-  - All 5 tools implemented (gcloud, kubectl, aws, docker, git)
+  - All 5 built-in tools implemented (gcloud, kubectl, aws, docker, git)
   - Full switching logic with snapshot/restore
   - Configuration system
-  - History and rollback
-  - Hooks system
+  - History tracking with detailed view
+  - Hooks system (pre/post switch)
   - Archive system
+  - Import/Export functionality
 
 - ✅ **Phase 2 (Essential Features)**: COMPLETED
 
@@ -456,13 +520,18 @@ envswitch config set log_level debug
   - Shell integration (bash, zsh, fish)
   - Auto-completion
   - Prompt customization
+  - Loading spinner during switch
+  - Verbose mode for detailed logging
+  - Backup configuration options
 
-- 🚧 **Phase 3 (Advanced Features)**: NEXT
-  - Encryption support
-  - TUI (Terminal UI)
-  - Template system
-  - Git sync
-  - Plugin system
+- ✅ **Phase 3 (Plugin System)**: COMPLETED
+  - Plugin system with auto-activation (no code required)
+  - Support for custom config paths
+  - Support for multiple config paths
+  - Environment variable expansion
+  - 3 example plugins (npm, vim, hosts)
+
+**The project is feature-complete!** All planned features have been implemented.
 
 ## Contributing
 

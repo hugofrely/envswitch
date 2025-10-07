@@ -199,7 +199,7 @@ envswitch ls --detailed
 ### Switching Environments
 
 ```bash
-# Switch to environment
+# Switch to environment (with loading spinner)
 envswitch switch myenv
 
 # Preview changes without applying
@@ -207,6 +207,12 @@ envswitch switch myenv --dry-run
 
 # Switch with verification
 envswitch switch myenv --verify
+
+# Skip backup during switch
+envswitch switch myenv --no-backup
+
+# Verbose mode (shows detailed logs)
+envswitch switch myenv --verbose
 ```
 
 ### Viewing Environment Details
@@ -242,26 +248,81 @@ envswitch delete myenv
 envswitch rm myenv --force
 ```
 
+### Viewing Switch History
+
+```bash
+# Show last 10 switches (default)
+envswitch history
+
+# Show last 20 switches
+envswitch history --limit 20
+
+# Show all history
+envswitch history --all
+
+# Show detailed view with full information
+envswitch history show
+
+# Clear history
+envswitch history clear
+```
+
+### Import/Export Environments
+
+```bash
+# Export single environment
+envswitch export myenv --output myenv-backup.tar.gz
+
+# Export all environments
+envswitch export --all --output ./backups
+
+# Import environment
+envswitch import myenv-backup.tar.gz
+
+# Import with different name
+envswitch import myenv-backup.tar.gz --name new-env
+
+# Force overwrite existing
+envswitch import myenv-backup.tar.gz --force
+
+# Import all from directory
+envswitch import --all ./backups
+```
+
+### Plugin Management
+
+```bash
+# List installed plugins
+envswitch plugin list
+
+# Install plugin (automatically activates in all environments)
+envswitch plugin install ./my-plugin
+
+# Show plugin information
+envswitch plugin info terraform
+
+# Remove plugin
+envswitch plugin remove terraform
+```
+
+**📖 Plugin Development**: EnvSwitch makes it easy to add support for new tools! Most plugins require **zero Go code**—just a simple YAML file. See [Plugin Documentation](docs/PLUGINS.md) to create your own plugin in 2 minutes.
+
 ---
 
 ## 🛠️ Supported Tools
 
 | Tool           | Status         | What's Captured                                                 |
 | -------------- | -------------- | --------------------------------------------------------------- |
-| **GCloud CLI** | 🚧 In Progress | Authentication, active account, project, region, configurations |
-| **Kubectl**    | 🚧 In Progress | Contexts, clusters, current namespace, kubeconfig               |
-| **AWS CLI**    | 🚧 In Progress | Profiles, credentials, default region, config                   |
-| **Docker**     | 🚧 In Progress | Registry authentication, config.json                            |
-| **Git**        | 🚧 In Progress | User name, email, signing keys                                  |
-| **Azure CLI**  | 📅 Planned     | Authentication, subscriptions, defaults                         |
-| **Terraform**  | 📅 Planned     | Workspaces, backend config                                      |
-| **SSH**        | 📅 Planned     | SSH keys, config                                                |
+| **GCloud CLI** | ✅ Implemented | Authentication, active account, project, region, configurations |
+| **Kubectl**    | ✅ Implemented | Contexts, clusters, current namespace, kubeconfig               |
+| **AWS CLI**    | ✅ Implemented | Profiles, credentials, default region, config                   |
+| **Docker**     | ✅ Implemented | Registry authentication, config.json                            |
+| **Git**        | ✅ Implemented | User name, email, signing keys                                  |
+| **Plugins**    | ✅ Implemented | Any tool via plugin system (npm, vim, terraform, etc.)          |
 
-**Legend:**
+**All built-in tools are fully implemented!** ✅
 
-- ✅ Implemented
-- 🚧 In Progress
-- 📅 Planned
+Add support for additional tools using the [Plugin System](docs/PLUGINS.md) - no code required!
 
 ---
 
@@ -313,12 +374,12 @@ Global config at `~/.envswitch/config.yaml`:
 # Behavior
 auto_save_before_switch: true # Auto-save before switching
 verify_after_switch: false # Verify connectivity after switch
+backup_before_switch: true # Create backup before each switch
 backup_retention: 10 # Keep last 10 auto-backups
 
 # UI
 color_output: true # Colored output
-show_timestamps: true # Show timestamps in output
-default_editor: vim # Editor for editing configs
+show_timestamps: false # Show timestamps in output
 
 # Shell Integration
 enable_prompt_integration: true # Show env in prompt
@@ -326,22 +387,11 @@ prompt_format: "({name})" # Format: (work)
 prompt_color: blue # Prompt color
 
 # Logging
-log_level: info # debug, info, warn, error
+log_level: warn # debug, info, warn, error (default: warn)
 log_file: ~/.envswitch/envswitch.log
 
-# Security
-encryption_enabled: false # Encrypt snapshots
-encryption_use_keyring: true # Use system keyring
-
-# Filters
-exclude_patterns: # Don't snapshot these
-  - "**/*.log"
-  - "**/*.tmp"
-exclude_tools: [] # Skip specific tools
-
-# Sync (Future)
-auto_sync: false # Auto-sync to git
-sync_provider: git # git, s3, dropbox
+# Tools
+exclude_tools: [] # Skip specific tools (e.g., ["docker", "aws"])
 ```
 
 ---
@@ -376,18 +426,6 @@ hooks:
   post_switch:
     - command: "kubectl get nodes"
       verify: true
-```
-
-### Diff Environments
-
-```bash
-# Compare current state with environment
-envswitch diff work
-
-# Shows:
-# Modified:
-#   gcloud.account: personal@gmail.com → user@company.com
-#   kubectl.context: minikube → gke-company-cluster
 ```
 
 ---
@@ -440,29 +478,22 @@ This project is in **early development**. Core features are being implemented.
 **What Works:**
 
 - ✅ Environment creation
-- ✅ Environment listing
-- ✅ Environment deletion
-- ✅ Basic CLI structure
+- ✅ Environment listing & detailed view
+- ✅ Environment deletion with archives
+- ✅ Environment switching with loading spinner
+- ✅ Tool snapshot capture (gcloud, kubectl, aws, docker, git)
+- ✅ Backup system with retention policy
+- ✅ Environment variables capture/restore
 - ✅ Configuration system
+- ✅ History tracking with detailed view
+- ✅ Import/Export environments
+- ✅ Shell integration (bash, zsh, fish)
+- ✅ Auto-completion
+- ✅ Hooks system (pre/post switch)
+- ✅ Verbose mode for detailed logging
+- ✅ Plugin system with auto-activation (no code required for most plugins)
 
-**In Progress (MVP):**
-
-- 🚧 Tool snapshot capture
-- 🚧 Environment switching
-- 🚧 Backup system
-- 🚧 Environment variables
-
-**Planned:**
-
-- 📅 History and rollback
-- 📅 Shell integration
-- 📅 Auto-completion
-- 📅 Hooks system
-- 📅 Diff functionality
-- 📅 Encryption
-- 📅 Sync with Git
-
-See [PROJECT_STATUS.md](PROJECT_STATUS.md) for detailed roadmap.
+The project is feature-complete for its intended use case. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for details.
 
 ---
 
@@ -483,10 +514,11 @@ We'd love your help! EnvSwitch is open source and welcoming contributors.
 1. Read [CONTRIBUTING.md](CONTRIBUTING.md)
 2. Check [good first issues](https://github.com/hugofrely/envswitch/labels/good%20first%20issue)
 3. Read [GETTING_STARTED.md](GETTING_STARTED.md) for dev setup
+4. Create plugins - see [Plugin Documentation](docs/PLUGINS.md)
 
-**High-priority help needed:**
+**Help wanted:**
 
-- Implementing tool integrations (GCloud, Kubectl, AWS, Docker, Git)
+- Creating new tool plugins (Terraform, Ansible, Helm, etc.)
 - Writing tests
 - Documentation and examples
 - Testing on different platforms
@@ -521,15 +553,6 @@ Built for developers tired of manual environment switching.
 
 ---
 
-## 💬 Support & Community
-
-- **Documentation:** [README.md](README.md)
-- **Issues:** [GitHub Issues](https://github.com/hugofrely/envswitch/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/hugofrely/envswitch/discussions)
-- **Twitter:** [@hugofrely](https://twitter.com/hugofrely)
-
----
-
 ## ⚠️ Important Notice
 
 **This is alpha software.** Not recommended for production use yet.
@@ -542,14 +565,6 @@ cp -r ~/.config/gcloud ~/.config/gcloud.backup
 cp -r ~/.kube ~/.kube.backup
 cp -r ~/.aws ~/.aws.backup
 ```
-
----
-
-## 🌟 Star History
-
-If you find EnvSwitch useful, please consider starring the repository!
-
-[![Star History Chart](https://api.star-history.com/svg?repos=hugofrely/envswitch&type=Date)](https://star-history.com/#hugofrely/envswitch&Date)
 
 ---
 

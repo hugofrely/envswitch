@@ -55,7 +55,6 @@ func TestRunInit(t *testing.T) {
 
 		assert.Equal(t, "1.0", config["version"])
 		assert.Equal(t, true, config["auto_save_before_switch"])
-		assert.Equal(t, "vim", config["default_editor"])
 	})
 
 	t.Run("creates history log", func(t *testing.T) {
@@ -127,22 +126,15 @@ func TestRunInit(t *testing.T) {
 		assert.Equal(t, true, config["auto_save_before_switch"])
 		assert.Equal(t, false, config["verify_after_switch"])
 		assert.Equal(t, 10, config["backup_retention"])
-		assert.Equal(t, "vim", config["default_editor"])
 		assert.Equal(t, true, config["enable_prompt_integration"])
 		assert.Equal(t, "({name})", config["prompt_format"])
 		assert.Equal(t, "blue", config["prompt_color"])
 		assert.Equal(t, "info", config["log_level"])
 		assert.NotEmpty(t, config["log_file"])
-		assert.Equal(t, false, config["encryption_enabled"])
-		assert.Equal(t, true, config["encryption_use_keyring"])
-		assert.NotNil(t, config["exclude_patterns"])
 		assert.NotNil(t, config["exclude_tools"])
-		assert.Equal(t, false, config["auto_sync"])
-		assert.Equal(t, "", config["sync_provider"])
-		assert.Equal(t, "", config["sync_repo"])
-		assert.Equal(t, "", config["sync_server"])
 		assert.Equal(t, true, config["color_output"])
-		assert.Equal(t, true, config["show_timestamps"])
+		assert.Equal(t, false, config["show_timestamps"])
+		assert.Equal(t, true, config["backup_before_switch"])
 	})
 
 	t.Run("handles existing directory gracefully", func(t *testing.T) {

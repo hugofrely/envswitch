@@ -1,0 +1,5 @@
+# No Go code needed for this plugin
+# Keep only YAML files
+*.go
+*.mod
+*.sum

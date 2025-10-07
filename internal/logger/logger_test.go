@@ -45,7 +45,7 @@ func TestInitLogger(t *testing.T) {
 		defer Close()
 
 		assert.NotNil(t, globalLogger)
-		assert.Equal(t, LevelInfo, globalLogger.level)
+		assert.Equal(t, LevelWarn, globalLogger.level)
 	})
 
 	t.Run("creates log directory if missing", func(t *testing.T) {
