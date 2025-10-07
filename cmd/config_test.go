@@ -379,7 +379,7 @@ func TestConfigIntegration(t *testing.T) {
 		// Check some default values
 		assert.Equal(t, "warn", cfg.LogLevel)
 		assert.Equal(t, 10, cfg.BackupRetention)
-		assert.Equal(t, "true", cfg.AutoSaveBeforeSwitch)
+		assert.Equal(t, "false", cfg.AutoSaveBeforeSwitch) // Changed to false to match new workflow
 		assert.True(t, cfg.ColorOutput)
 	})
 }

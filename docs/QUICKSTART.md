@@ -11,6 +11,7 @@ curl -fsSL https://raw.githubusercontent.com/hugofrely/envswitch/main/install.sh
 ```
 
 This automatically:
+
 - Detects your platform (macOS/Linux)
 - Downloads and installs the latest version
 - Configures PATH
@@ -179,6 +180,7 @@ envswitch switch work --verbose
 7. 📝 Records switch in history log
 
 **Output modes:**
+
 - **Normal mode**: Shows only success message and spinner
 - **Verbose mode** (`--verbose`): Shows detailed debug logs for all operations
 
@@ -252,6 +254,7 @@ envswitch history clear
 ```
 
 **History format:**
+
 ```
 ✅ 2025-10-06 19:36:07  personal → work  1.41s
 ✅ 2025-10-06 18:22:15  work → personal  1.23s
@@ -298,7 +301,7 @@ envswitch config get log_level
 
 ```bash
 # Set auto-save behavior
-envswitch config set auto_save_before_switch true
+envswitch config set auto_save_before_switch false
 
 # Set backup retention (number of backups to keep)
 envswitch config set backup_retention 10
@@ -332,7 +335,7 @@ Edit `~/.envswitch/config.yaml` directly:
 
 ```yaml
 version: "1.0"
-auto_save_before_switch: true # true, false, or prompt
+auto_save_before_switch: false # true, false, or prompt
 verify_after_switch: false
 backup_retention: 10
 backup_before_switch: true # Create backup before each switch
@@ -461,11 +464,13 @@ envswitch plugin install .
 ```
 
 **That's it!** The plugin is automatically:
+
 - ✅ Installed
 - ✅ Activated in ALL your environments
 - ✅ Capturing config during every switch
 
 EnvSwitch automatically detects config file locations:
+
 - `npm` → `~/.npmrc`
 - `yarn` → `~/.yarnrc`
 - `pip` → `~/.pip/pip.conf`

@@ -266,7 +266,17 @@ func runCreate(cmd *cobra.Command, args []string) error {
 	fmt.Printf("✅ Environment '%s' created successfully\n", name)
 	fmt.Printf("   Path: %s\n", envPath)
 	fmt.Println()
-	fmt.Printf("Next: envswitch switch %s\n", name)
+
+	// Auto-switch to the new environment if created from current state
+	if createFromCurrent || createFrom != "" {
+		fmt.Printf("🔄 Switching to '%s'...\n", name)
+		if err := environment.SetCurrentEnvironment(name); err != nil {
+			return fmt.Errorf("failed to switch to new environment: %w", err)
+		}
+		fmt.Printf("✅ Switched to '%s'\n", name)
+	} else {
+		fmt.Printf("Next: envswitch switch %s\n", name)
+	}
 
 	return nil
 }

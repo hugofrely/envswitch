@@ -40,7 +40,7 @@ func DefaultConfig() *Config {
 	home, _ := os.UserHomeDir()
 	return &Config{
 		Version:                 "1.0",
-		AutoSaveBeforeSwitch:    "true",
+		AutoSaveBeforeSwitch:    "false",
 		VerifyAfterSwitch:       false,
 		BackupBeforeSwitch:      true,
 		BackupRetention:         10,

@@ -33,18 +33,19 @@ kubectl config use-context minikube
 
 ```bash
 # Setup your work environment
-envswitch create work --from-current
-envswitch switch work
 gcloud auth login work@company.com
+envswitch create work --from-current    # Captures AND switches to 'work'
 
 # Setup your personal environment
-envswitch create personal --from-current
-envswitch switch personal
 gcloud auth login personal@gmail.com
+envswitch create personal --from-current # Captures AND switches to 'personal'
 
 # Then switch instantly, anytime
 envswitch switch work        # All your work configs restored
 envswitch switch personal    # All your personal configs restored
+
+# Save changes to active environment
+envswitch save              # Updates current environment with latest changes
 ```
 
 One command. Everything restored. **Instantly.**
@@ -136,25 +137,28 @@ Download the latest release from [GitHub Releases](https://github.com/hugofrely/
 # 1. Initialize EnvSwitch
 envswitch init
 
-# 2. Create work environment snapshot
-envswitch create work --from-current
-envswitch switch work
-
-# 3. Setup your work environment
+# 2. Setup your work environment first
 gcloud auth login work@company.com
 gcloud config set project company-prod-123
+kubectl config use-context work-cluster
 
-# 4. Create personal environment snapshot
-envswitch create personal --from-current
-envswitch switch personal
+# 3. Create and capture work environment (auto-switches to it)
+envswitch create work --from-current
 
-# 5. Setup your personal environment
+# 4. Setup your personal environment
 gcloud auth login personal@gmail.com
 gcloud config set project personal-project
+kubectl config use-context personal-cluster
+
+# 5. Create and capture personal environment (auto-switches to it)
+envswitch create personal --from-current
 
 # 6. Switch between environments instantly!
 envswitch switch work      # Restores work@company.com
 envswitch switch personal  # Restores personal@gmail.com
+
+# 7. If you make changes to your environment, save them
+envswitch save            # Updates current environment
 ```
 
 That's it! 🎉
@@ -166,18 +170,28 @@ That's it! 🎉
 ### Creating Environments
 
 ```bash
-# Create from current system state
+# Create from current system state (auto-switches to it)
 envswitch create myenv --from-current
 
 # Create empty environment
 envswitch create myenv --empty
 
-# Clone existing environment
+# Clone existing environment (auto-switches to it)
 envswitch create dev --from prod
 
 # With description
 envswitch create staging --from-current \
     --description "Staging environment for testing"
+```
+
+### Saving Environment Changes
+
+```bash
+# Save current system state to the active environment
+envswitch save
+
+# This updates the active environment with any changes you've made
+# (authentication, configurations, etc.)
 ```
 
 ### Listing Environments
@@ -371,7 +385,7 @@ Global config at `~/.envswitch/config.yaml`:
 
 ```yaml
 # Behavior
-auto_save_before_switch: true # Auto-save before switching
+auto_save_before_switch: false # Auto-save before switching (false by default)
 verify_after_switch: false # Verify connectivity after switch
 backup_before_switch: true # Create backup before each switch
 backup_retention: 10 # Keep last 10 auto-backups
@@ -435,38 +449,37 @@ hooks:
 
 ```bash
 # Setup work environment
-envswitch create work --from-current
-envswitch switch work
 gcloud auth login work@company.com
 gcloud config set project company-prod-123
 kubectl config use-context gke-company-cluster
+envswitch create work --from-current    # Captures and switches to 'work'
 
 # Setup personal environment
-envswitch create personal --from-current
-envswitch switch personal
 gcloud auth login personal@gmail.com
 gcloud config set project my-side-project
 kubectl config use-context minikube
+envswitch create personal --from-current # Captures and switches to 'personal'
 
 # Daily usage
 envswitch switch work      # 9am - Start work
 envswitch switch personal  # 6pm - Side projects
+
+# If you make changes to your setup
+envswitch save            # Save changes to active environment
 ```
 
 ### Example 2: Multi-Client Consulting
 
 ```bash
-# Client A environment
-envswitch create clientA --from-current
-envswitch switch clientA
+# Setup Client A environment
 gcloud auth login consultant@clientA.com
 aws configure  # Setup AWS for Client A
+envswitch create clientA --from-current
 
-# Client B environment
-envswitch create clientB --from-current
-envswitch switch clientB
+# Setup Client B environment
 gcloud auth login consultant@clientB.com
 aws configure  # Setup AWS for Client B
+envswitch create clientB --from-current
 
 # Switch throughout the day
 envswitch switch clientA   # Morning meeting
@@ -476,18 +489,16 @@ envswitch switch clientB   # Afternoon development
 ### Example 3: Production vs Staging
 
 ```bash
-# Production environment
-envswitch create production --from-current
-envswitch switch production
+# Setup Production environment
 gcloud auth login ops@company.com
 gcloud config set project company-prod
 kubectl config use-context production-cluster
+envswitch create production --from-current
 
-# Staging environment
-envswitch create staging --from-current
-envswitch switch staging
+# Setup Staging environment
 gcloud config set project company-staging
 kubectl config use-context staging-cluster
+envswitch create staging --from-current
 
 # Safe switching with verification
 envswitch switch production --verify
