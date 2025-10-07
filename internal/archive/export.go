@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/hugofrely/envswitch/pkg/environment"
+	"github.com/hugofrely/envswitch/pkg/spinner"
 )
 
 // ExportOptions defines options for exporting environments
@@ -17,15 +18,21 @@ type ExportOptions struct {
 
 // ExportEnvironment exports a single environment to a file
 func ExportEnvironment(envName, outputPath string) error {
+	spin := spinner.New(fmt.Sprintf("Exporting '%s'", envName))
+	spin.Start()
+
 	// Load the environment
 	env, err := environment.LoadEnvironment(envName)
 	if err != nil {
+		spin.Error(fmt.Sprintf("Failed to load environment '%s'", envName))
 		return fmt.Errorf("failed to load environment '%s': %w", envName, err)
 	}
 
 	// Create archive
+	spin.Update(fmt.Sprintf("Creating archive for '%s'", envName))
 	archive, err := ArchiveEnvironment(env)
 	if err != nil {
+		spin.Error(fmt.Sprintf("Failed to create archive for '%s'", envName))
 		return fmt.Errorf("failed to archive environment: %w", err)
 	}
 
@@ -35,10 +42,13 @@ func ExportEnvironment(envName, outputPath string) error {
 	}
 
 	// Copy archive to output path
+	spin.Update(fmt.Sprintf("Writing to %s", outputPath))
 	if err := copyFile(archive.Path, outputPath); err != nil {
+		spin.Error(fmt.Sprintf("Failed to write archive for '%s'", envName))
 		return fmt.Errorf("failed to copy archive: %w", err)
 	}
 
+	spin.Success(fmt.Sprintf("Exported '%s' to %s", envName, outputPath))
 	return nil
 }
 
@@ -73,20 +83,25 @@ func ExportAllEnvironments(outputPath string) error {
 
 	// Export each environment
 	exported := 0
-	for _, env := range environments {
+	for i, env := range environments {
+		spin := spinner.New(fmt.Sprintf("[%d/%d] Exporting '%s'", i+1, len(environments), env.Name))
+		spin.Start()
+
 		archive, err := ArchiveEnvironment(env)
 		if err != nil {
-			fmt.Printf("Warning: Failed to export '%s': %v\n", env.Name, err)
+			spin.Error(fmt.Sprintf("[%d/%d] Failed to export '%s'", i+1, len(environments), env.Name))
 			continue
 		}
 
 		// Copy to output directory
 		destPath := filepath.Join(outputDir, filepath.Base(archive.Path))
+		spin.Update(fmt.Sprintf("[%d/%d] Writing '%s' to %s", i+1, len(environments), env.Name, destPath))
 		if err := copyFile(archive.Path, destPath); err != nil {
-			fmt.Printf("Warning: Failed to copy archive for '%s': %v\n", env.Name, err)
+			spin.Error(fmt.Sprintf("[%d/%d] Failed to write '%s'", i+1, len(environments), env.Name))
 			continue
 		}
 
+		spin.Success(fmt.Sprintf("[%d/%d] Exported '%s'", i+1, len(environments), env.Name))
 		exported++
 	}
 
@@ -114,26 +129,31 @@ func ExportEnvironments(envNames []string, outputDir string) error {
 
 	// Export each specified environment
 	exported := 0
-	for _, envName := range envNames {
+	for i, envName := range envNames {
+		spin := spinner.New(fmt.Sprintf("[%d/%d] Exporting '%s'", i+1, len(envNames), envName))
+		spin.Start()
+
 		env, err := environment.LoadEnvironment(envName)
 		if err != nil {
-			fmt.Printf("Warning: Failed to load '%s': %v\n", envName, err)
+			spin.Error(fmt.Sprintf("[%d/%d] Failed to load '%s'", i+1, len(envNames), envName))
 			continue
 		}
 
 		archive, err := ArchiveEnvironment(env)
 		if err != nil {
-			fmt.Printf("Warning: Failed to export '%s': %v\n", envName, err)
+			spin.Error(fmt.Sprintf("[%d/%d] Failed to export '%s'", i+1, len(envNames), envName))
 			continue
 		}
 
 		// Copy to output directory
 		destPath := filepath.Join(outputDir, filepath.Base(archive.Path))
+		spin.Update(fmt.Sprintf("[%d/%d] Writing '%s' to %s", i+1, len(envNames), envName, destPath))
 		if err := copyFile(archive.Path, destPath); err != nil {
-			fmt.Printf("Warning: Failed to copy archive for '%s': %v\n", envName, err)
+			spin.Error(fmt.Sprintf("[%d/%d] Failed to write '%s'", i+1, len(envNames), envName))
 			continue
 		}
 
+		spin.Success(fmt.Sprintf("[%d/%d] Exported '%s'", i+1, len(envNames), envName))
 		exported++
 	}
 
