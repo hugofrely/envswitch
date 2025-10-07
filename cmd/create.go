@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/hugofrely/envswitch/pkg/environment"
+	"github.com/hugofrely/envswitch/pkg/spinner"
 	"github.com/hugofrely/envswitch/pkg/tools"
 )
 
@@ -35,6 +36,19 @@ func init() {
 	createCmd.Flags().BoolVar(&createEmpty, "empty", false, "Create empty environment")
 	createCmd.Flags().StringVar(&createFrom, "from", "", "Clone from existing environment")
 	createCmd.Flags().StringVarP(&createDescription, "description", "d", "", "Environment description")
+
+	// Add auto-completion for --from flag
+	createCmd.RegisterFlagCompletionFunc("from", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		envs, err := environment.ListEnvironments()
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		var names []string
+		for _, env := range envs {
+			names = append(names, env.Name)
+		}
+		return names, cobra.ShellCompDirectiveNoFileComp
+	})
 }
 
 // cloneEnvironment copies snapshots and configuration from an existing environment
@@ -108,8 +122,8 @@ func cloneEnvironment(envDir, sourceName, destPath string, env *environment.Envi
 
 // captureCurrentState captures snapshots from the current system state
 func captureCurrentState(envPath string, env *environment.Environment) error {
-	fmt.Println("📸 Capturing current state...")
-	fmt.Println()
+	spin := spinner.New("Capturing current state")
+	spin.Start()
 
 	// Capture snapshots for each tool
 	capturedCount := 0
@@ -122,9 +136,20 @@ func captureCurrentState(envPath string, env *environment.Environment) error {
 	}
 
 	for toolName, toolImpl := range availableTools {
+		spin.Update(fmt.Sprintf("Checking %s", toolName))
+
+		// Check if tool is already enabled in the environment (for save command)
+		// If it is, try to capture even if not installed (for testing)
+		existingConfig, exists := env.Tools[toolName]
+		alreadyEnabled := exists && existingConfig.Enabled
+
 		// Check if tool is installed
 		if !toolImpl.IsInstalled() {
-			fmt.Printf("  ⊘ %s (not installed)\n", toolName)
+			// If tool was already enabled, keep it enabled but don't update snapshot
+			if alreadyEnabled {
+				// Keep existing config but mark that we couldn't update
+				continue
+			}
 			env.Tools[toolName] = environment.ToolConfig{
 				Enabled:      false,
 				SnapshotPath: filepath.Join("snapshots", toolName),
@@ -137,8 +162,12 @@ func captureCurrentState(envPath string, env *environment.Environment) error {
 		snapshotPath := filepath.Join(envPath, "snapshots", toolName)
 
 		// Capture snapshot
+		spin.Update(fmt.Sprintf("Capturing %s", toolName))
 		if err := toolImpl.Snapshot(snapshotPath); err != nil {
-			fmt.Printf("  ⚠ %s (failed: %v)\n", toolName, err)
+			// If tool was already enabled, keep it enabled
+			if alreadyEnabled {
+				continue
+			}
 			env.Tools[toolName] = environment.ToolConfig{
 				Enabled:      false,
 				SnapshotPath: filepath.Join("snapshots", toolName),
@@ -160,31 +189,13 @@ func captureCurrentState(envPath string, env *environment.Environment) error {
 			Metadata:     metadata,
 		}
 
-		// Display success with metadata
-		fmt.Printf("  ✓ %s", toolName)
-		if len(metadata) > 0 {
-			fmt.Print(" (")
-			first := true
-			for key, value := range metadata {
-				if !first {
-					fmt.Print(", ")
-				}
-				fmt.Printf("%s: %v", key, value)
-				first = false
-			}
-			fmt.Print(")")
-		}
-		fmt.Println()
-
 		capturedCount++
 	}
 
 	// Update snapshot info
 	env.LastSnapshot = time.Now()
-	fmt.Println()
-	fmt.Printf("✅ Captured %d tool(s) successfully\n", capturedCount)
-	fmt.Println()
 
+	spin.Success(fmt.Sprintf("Captured %d tool(s) successfully", capturedCount))
 	return nil
 }
 
@@ -266,7 +277,17 @@ func runCreate(cmd *cobra.Command, args []string) error {
 	fmt.Printf("✅ Environment '%s' created successfully\n", name)
 	fmt.Printf("   Path: %s\n", envPath)
 	fmt.Println()
-	fmt.Printf("Next: envswitch switch %s\n", name)
+
+	// Auto-switch to the new environment if created from current state
+	if createFromCurrent || createFrom != "" {
+		fmt.Printf("🔄 Switching to '%s'...\n", name)
+		if err := environment.SetCurrentEnvironment(name); err != nil {
+			return fmt.Errorf("failed to switch to new environment: %w", err)
+		}
+		fmt.Printf("✅ Switched to '%s'\n", name)
+	} else {
+		fmt.Printf("Next: envswitch switch %s\n", name)
+	}
 
 	return nil
 }

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -55,9 +54,6 @@ func init() {
 func runImport(cmd *cobra.Command, args []string) error {
 	archivePath := args[0]
 
-	fmt.Println("📥 Importing environment(s)...")
-	fmt.Println()
-
 	// Import all from directory
 	if importAll {
 		if err := archive.ImportAll(archivePath, importForce); err != nil {
@@ -84,27 +80,6 @@ func runImport(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to import environment: %w", err)
 	}
 
-	envName := importName
-	if envName == "" {
-		// Extract name from archive filename
-		base := filepath.Base(archivePath)
-		// Remove extensions
-		envName = strings.TrimSuffix(base, ".tar.gz")
-		envName = strings.TrimSuffix(envName, ".tgz")
-		// Remove timestamp if present (format: envname-YYYYMMDD-HHMMSS)
-		parts := strings.Split(envName, "-")
-		if len(parts) >= 3 {
-			// Remove last 2 parts if they look like timestamp
-			lastPart := parts[len(parts)-1]
-			secondLastPart := parts[len(parts)-2]
-			if len(lastPart) == 6 && len(secondLastPart) == 8 {
-				envName = strings.Join(parts[:len(parts)-2], "-")
-			}
-		}
-	}
-
-	fmt.Printf("✅ Environment '%s' imported successfully\n", envName)
-	fmt.Printf("   You can now switch to it with: envswitch switch %s\n", envName)
-
+	// Success message is already displayed by the spinner in ImportEnvironment
 	return nil
 }

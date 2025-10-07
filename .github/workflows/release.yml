@@ -36,6 +36,13 @@ jobs:
           echo "commit=${GIT_COMMIT}" >> $GITHUB_OUTPUT
           echo "date=${BUILD_DATE}" >> $GITHUB_OUTPUT
 
+          # Check if this is a pre-release (contains -beta, -alpha, -rc, etc.)
+          if echo "${VERSION}" | grep -qE '\-(beta|alpha|rc)'; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build for all platforms
         run: |
           LDFLAGS="-X github.com/hugofrely/envswitch/internal/version.Version=${{ steps.version.outputs.version }} -X github.com/hugofrely/envswitch/internal/version.GitCommit=${{ steps.version.outputs.commit }} -X github.com/hugofrely/envswitch/internal/version.BuildDate=${{ steps.version.outputs.date }}"
@@ -72,4 +79,4 @@ jobs:
             bin/checksums.txt
           generate_release_notes: true
           draft: false
-          prerelease: false
+          prerelease: ${{ steps.version.outputs.is_prerelease }}

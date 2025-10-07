@@ -48,7 +48,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		defaultConfig := map[string]interface{}{
 			"version":                   "1.0",
-			"auto_save_before_switch":   true,
+			"auto_save_before_switch":   false,
 			"verify_after_switch":       false,
 			"backup_retention":          10,
 			"enable_prompt_integration": true,

@@ -54,7 +54,7 @@ func TestRunInit(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, "1.0", config["version"])
-		assert.Equal(t, true, config["auto_save_before_switch"])
+		assert.Equal(t, false, config["auto_save_before_switch"])
 	})
 
 	t.Run("creates history log", func(t *testing.T) {
@@ -123,7 +123,7 @@ func TestRunInit(t *testing.T) {
 
 		// Verify all default config values
 		assert.Equal(t, "1.0", config["version"])
-		assert.Equal(t, true, config["auto_save_before_switch"])
+		assert.Equal(t, false, config["auto_save_before_switch"])
 		assert.Equal(t, false, config["verify_after_switch"])
 		assert.Equal(t, 10, config["backup_retention"])
 		assert.Equal(t, true, config["enable_prompt_integration"])
