@@ -48,7 +48,8 @@ func (s *Spinner) Start() {
 			default:
 				s.mu.Lock()
 				frame := s.frames[i%len(s.frames)]
-				fmt.Fprintf(s.writer, "\r%s %s", frame, s.message)
+				// Clear the line and write new content
+				fmt.Fprintf(s.writer, "\r\033[K%s %s", frame, s.message)
 				s.mu.Unlock()
 				i++
 				time.Sleep(80 * time.Millisecond)
@@ -75,7 +76,7 @@ func (s *Spinner) Success(message string) {
 
 	s.active = false
 	s.stop <- true
-	fmt.Fprintf(s.writer, "\r✓ %s\n", message)
+	fmt.Fprintf(s.writer, "\r\033[K✓ %s\n", message)
 }
 
 // Error stops the spinner and displays an error message
@@ -89,7 +90,7 @@ func (s *Spinner) Error(message string) {
 
 	s.active = false
 	s.stop <- true
-	fmt.Fprintf(s.writer, "\r✗ %s\n", message)
+	fmt.Fprintf(s.writer, "\r\033[K✗ %s\n", message)
 }
 
 // Stop stops the spinner without displaying a message
@@ -103,5 +104,5 @@ func (s *Spinner) Stop() {
 
 	s.active = false
 	s.stop <- true
-	fmt.Fprintf(s.writer, "\r")
+	fmt.Fprintf(s.writer, "\r\033[K")
 }
