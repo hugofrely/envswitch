@@ -7,6 +7,8 @@
 
 EnvSwitch is a powerful CLI tool that captures, saves, and restores the complete state of your development environments. Switch instantly between work and personal projects, different client environments, or testing scenarios—without losing your authentication, configurations, or contexts.
 
+![EnvSwitch Demo](demo.gif)
+
 ---
 
 ## 🎯 The Problem
