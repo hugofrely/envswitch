@@ -11,6 +11,12 @@ import (
 	"github.com/hugofrely/envswitch/internal/config"
 )
 
+const (
+	shellBash = "bash"
+	shellZsh  = "zsh"
+	shellFish = "fish"
+)
+
 // GenerateInitScript generates the shell initialization script for the specified shell
 func GenerateInitScript(shellType string, cfg *config.Config) (string, error) {
 	if !cfg.EnablePromptIntegration {
@@ -18,11 +24,11 @@ func GenerateInitScript(shellType string, cfg *config.Config) (string, error) {
 	}
 
 	switch shellType {
-	case "bash":
+	case shellBash:
 		return generateBashScript(cfg)
-	case "zsh":
+	case shellZsh:
 		return generateZshScript(cfg)
-	case "fish":
+	case shellFish:
 		return generateFishScript(cfg)
 	default:
 		return "", fmt.Errorf("unsupported shell: %s", shellType)
@@ -31,12 +37,6 @@ func GenerateInitScript(shellType string, cfg *config.Config) (string, error) {
 
 // InstallShellIntegration automatically installs shell integration
 func InstallShellIntegration(shellType string, cfg *config.Config) (string, error) {
-	// Generate the script
-	script, err := GenerateInitScript(shellType, cfg)
-	if err != nil {
-		return "", err
-	}
-
 	// Determine config file path
 	configFile, err := getShellConfigFile(shellType)
 	if err != nil {
@@ -55,20 +55,17 @@ func InstallShellIntegration(shellType string, cfg *config.Config) (string, erro
 	}
 	defer file.Close()
 
-	// Add marker and script
-	marker := "\n# envswitch shell integration - DO NOT EDIT THIS SECTION\n"
-	endMarker := "# end envswitch shell integration\n"
-
-	if _, err := file.WriteString(marker); err != nil {
-		return "", fmt.Errorf("failed to write marker: %w", err)
+	// Add simple eval line
+	var evalLine string
+	switch shellType {
+	case shellBash, shellZsh:
+		evalLine = "\n# envswitch shell integration\neval \"$(envswitch shell init " + shellType + ")\"\n"
+	case shellFish:
+		evalLine = "\n# envswitch shell integration\nenvswitch shell init fish | source\n"
 	}
 
-	if _, err := file.WriteString(script); err != nil {
-		return "", fmt.Errorf("failed to write script: %w", err)
-	}
-
-	if _, err := file.WriteString(endMarker); err != nil {
-		return "", fmt.Errorf("failed to write end marker: %w", err)
+	if _, err := file.WriteString(evalLine); err != nil {
+		return "", fmt.Errorf("failed to write integration: %w", err)
 	}
 
 	return configFile, nil
@@ -82,16 +79,16 @@ func getShellConfigFile(shellType string) (string, error) {
 	}
 
 	switch shellType {
-	case "bash":
+	case shellBash:
 		// Prefer .bashrc, fallback to .bash_profile
 		bashrc := filepath.Join(home, ".bashrc")
 		if _, err := os.Stat(bashrc); err == nil {
 			return bashrc, nil
 		}
 		return filepath.Join(home, ".bash_profile"), nil
-	case "zsh":
+	case shellZsh:
 		return filepath.Join(home, ".zshrc"), nil
-	case "fish":
+	case shellFish:
 		configDir := filepath.Join(home, ".config", "fish")
 		if err := os.MkdirAll(configDir, 0755); err != nil {
 			return "", fmt.Errorf("failed to create fish config directory: %w", err)
@@ -132,9 +129,16 @@ __envswitch_prompt() {
     fi
 }
 
-# Add envswitch to PS1
-if [[ "$PS1" != *__envswitch_prompt* ]]; then
-    export PS1="$(__envswitch_prompt)$PS1"
+# Add envswitch to PS1 via PROMPT_COMMAND
+if [[ "$PROMPT_COMMAND" != *__envswitch_update_ps1* ]]; then
+    __envswitch_update_ps1() {
+        PS1="$(__envswitch_prompt)${PS1_ORIGINAL:-$PS1}"
+    }
+    # Save original PS1 if not already saved
+    if [ -z "$PS1_ORIGINAL" ]; then
+        export PS1_ORIGINAL="$PS1"
+    fi
+    export PROMPT_COMMAND="__envswitch_update_ps1${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
 fi
 
 # Auto-load environment variables on switch
@@ -188,22 +192,22 @@ func generateZshScript(cfg *config.Config) (string, error) {
 	script.WriteString("    if [[ -n \"$env_name\" ]]; then\n")
 
 	color := parseZshColor(cfg.PromptColor)
-	if color != "" {
-		script.WriteString(fmt.Sprintf("        printf \"%%F{%s}\"\n", color))
-	}
-
 	format := parsePromptFormat(cfg.PromptFormat)
-	script.WriteString(fmt.Sprintf("        printf %q \"$env_name\"\n", format))
+	// Replace %s with $env_name for zsh
+	format = strings.ReplaceAll(format, "%s", "$env_name")
 
+	// Use echo with zsh color codes instead of printf
 	if color != "" {
-		script.WriteString("        printf \"%f\"\n")
+		script.WriteString(fmt.Sprintf("        echo -n \"%%F{%s}%s%%f\"\n", color, format))
+	} else {
+		script.WriteString(fmt.Sprintf("        echo -n %q\n", format))
 	}
 
 	script.WriteString("    fi\n")
 	script.WriteString("}\n\n")
 	script.WriteString("# Add envswitch to PROMPT\n")
 	script.WriteString("if [[ \"$PROMPT\" != *__envswitch_prompt* ]]; then\n")
-	script.WriteString("    export PROMPT=\"$(__envswitch_prompt)$PROMPT\"\n")
+	script.WriteString("    export PROMPT='$(__envswitch_prompt)'\"$PROMPT\"\n")
 	script.WriteString("fi\n\n")
 	script.WriteString("# Auto-load environment variables on switch\n")
 	script.WriteString("__envswitch_load_vars() {\n")
@@ -291,8 +295,10 @@ func parsePromptFormat(format string) string {
 	if format == "" {
 		return "(%s) "
 	}
-	// Replace {env} with %s for printf
-	return strings.ReplaceAll(format, "{env}", "%s")
+	// Replace {env} or {name} with %s for printf
+	format = strings.ReplaceAll(format, "{env}", "%s")
+	format = strings.ReplaceAll(format, "{name}", "%s")
+	return format
 }
 
 // parsePromptColor converts color names to ANSI escape codes for bash

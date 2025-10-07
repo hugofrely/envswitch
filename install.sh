@@ -270,6 +270,9 @@ install_completion() {
 # envswitch completion
 fpath=(~/.zsh/completion $fpath)
 autoload -Uz compinit && compinit
+
+# envswitch shell integration
+eval "$(envswitch shell init zsh)"
 EOF
                 log_success "Auto-completion installed for zsh"
                 log_info "Run: source ~/.zshrc"
@@ -317,6 +320,9 @@ EOF
 for bcfile in ~/.bash_completion.d/* ; do
   [ -f "$bcfile" ] && . "$bcfile"
 done
+
+# envswitch shell integration
+eval "$(envswitch shell init bash)"
 EOF
                     log_success "Auto-completion installed for bash"
                     log_info "Run: source $BASHRC"
