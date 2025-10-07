@@ -20,9 +20,9 @@ GIT_COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
 
 # Linker flags
-LDFLAGS=-X github.com/hugofrely/envswitch/cmd.Version=$(VERSION) \
-        -X github.com/hugofrely/envswitch/cmd.GitCommit=$(GIT_COMMIT) \
-        -X github.com/hugofrely/envswitch/cmd.BuildDate=$(BUILD_DATE)
+LDFLAGS=-X github.com/hugofrely/envswitch/internal/version.Version=$(VERSION) \
+        -X github.com/hugofrely/envswitch/internal/version.GitCommit=$(GIT_COMMIT) \
+        -X github.com/hugofrely/envswitch/internal/version.BuildDate=$(BUILD_DATE)
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
