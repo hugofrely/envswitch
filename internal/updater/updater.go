@@ -92,8 +92,9 @@ func CheckForUpdate() (*UpdateInfo, error) {
 	info.LatestVersion = strings.TrimPrefix(release.TagName, "v")
 	info.ReleaseURL = release.HTMLURL
 
-	// Compare versions
-	if info.LatestVersion != info.CurrentVersion {
+	// Compare versions (normalize both by removing 'v' prefix)
+	currentVersion := strings.TrimPrefix(info.CurrentVersion, "v")
+	if info.LatestVersion != currentVersion {
 		info.Available = true
 		info.DownloadURL = findAssetURL(release.Assets)
 	}
