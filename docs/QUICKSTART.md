@@ -4,7 +4,20 @@ This guide will help you get started with EnvSwitch in 5 minutes.
 
 ## Installation
 
-### Option 1: Download Binary (Recommended)
+### Option 1: Install Script (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/hugofrely/envswitch/main/install.sh | bash
+```
+
+This automatically:
+- Detects your platform (macOS/Linux)
+- Downloads and installs the latest version
+- Configures PATH
+- Optionally installs auto-completion (will prompt)
+- Sets up everything for you!
+
+### Option 2: Download Binary Manually
 
 Visit the [releases page](https://github.com/hugofrely/envswitch/releases/latest) and download the binary for your platform:
 
@@ -28,7 +41,7 @@ sudo mv envswitch-linux-amd64 /usr/local/bin/envswitch
 envswitch --version
 ```
 
-### Option 2: Install from Source (requires Go)
+### Option 3: Install from Source (requires Go)
 
 ```bash
 git clone https://github.com/hugofrely/envswitch.git
@@ -36,20 +49,7 @@ cd envswitch
 make install
 ```
 
-### Option 3: Install Script (Recommended)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/hugofrely/envswitch/main/install.sh | bash
-```
-
-This automatically:
-
-- Detects your platform
-- Installs the latest version
-- Configures PATH
-- **Optionally installs auto-completion** (will prompt)
-
-See [INSTALL.md](../INSTALL.md) for more options.
+See [INSTALL.md](../INSTALL.md) for more installation options.
 
 ## First Time Setup
 
@@ -255,28 +255,6 @@ envswitch history clear
 ```
 ✅ 2025-10-06 19:36:07  personal → work  1.41s
 ✅ 2025-10-06 18:22:15  work → personal  1.23s
-```
-
-### Rollback to Previous Environment
-
-```bash
-# Undo last switch
-envswitch rollback
-
-# Rollback to specific history entry
-envswitch rollback --to 3
-```
-
-### Compare Environments
-
-```bash
-# Compare two environments
-envswitch diff work personal
-
-# Shows differences in:
-# - Tool configurations
-# - Environment variables
-# - Metadata
 ```
 
 ### Delete an Environment
@@ -528,7 +506,7 @@ envswitch plugin remove npm
 
 - ✅ **Phase 1 (MVP)**: COMPLETED
 
-  - All 5 tools implemented (gcloud, kubectl, aws, docker, git)
+  - All 5 built-in tools implemented (gcloud, kubectl, aws, docker, git)
   - Full switching logic with snapshot/restore
   - Configuration system
   - History tracking with detailed view
@@ -546,12 +524,14 @@ envswitch plugin remove npm
   - Verbose mode for detailed logging
   - Backup configuration options
 
-- 🚧 **Phase 3 (Advanced Features)**: IN PROGRESS
-  - ✅ Plugin system with auto-activation (no code required)
-  - Encryption support
-  - TUI (Terminal UI)
-  - Template system
-  - Git sync
+- ✅ **Phase 3 (Plugin System)**: COMPLETED
+  - Plugin system with auto-activation (no code required)
+  - Support for custom config paths
+  - Support for multiple config paths
+  - Environment variable expansion
+  - 3 example plugins (npm, vim, hosts)
+
+**The project is feature-complete!** All planned features have been implemented.
 
 ## Contributing
 

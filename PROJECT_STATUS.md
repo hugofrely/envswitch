@@ -68,7 +68,6 @@ EnvSwitch is a CLI tool that captures, saves, and restores the complete state of
 
 ### ✅ Phase 3: Advanced Features (COMPLETED)
 
-- [x] TUI (Terminal UI) - Interactive terminal interface with Bubbletea
 - [x] Import/Export - Backup and restore environments with tar.gz archives
 - [x] Plugin system - Extensible architecture for additional tools
 
@@ -89,7 +88,6 @@ envswitch/
 │   ├── shell.go              ✅ Shell integration (Phase 2)
 │   ├── completion.go         ✅ Auto-completion (Phase 2)
 │   ├── completion_helpers.go ✅ Completion functions
-│   ├── tui.go                ✅ Terminal UI (Phase 3)
 │   ├── export.go             ✅ Export command (Phase 3)
 │   ├── import.go             ✅ Import command (Phase 3)
 │   └── plugin.go             ✅ Plugin management (Phase 3)
@@ -118,10 +116,7 @@ envswitch/
 │   ├── config/               ✅ Configuration system
 │   ├── logger/               ✅ Logging system (Phase 1)
 │   ├── output/               ✅ Output formatting (Phase 1)
-│   ├── shell/                ✅ Shell integration (Phase 2)
-│   └── tui/                  ✅ Terminal UI (Phase 3)
-│       ├── model.go          ✅ TUI state & views
-│       └── actions.go        ✅ TUI actions
+│   └── shell/                ✅ Shell integration (Phase 2)
 │
 ├── docs/                     ✅ Documentation
 ├── .github/workflows/        ✅ CI/CD
@@ -225,7 +220,7 @@ MIT License - see [LICENSE](LICENSE) file
 ---
 
 **Note:** All Phase 3 features are complete! EnvSwitch now includes:
-- ✅ Interactive Terminal UI (TUI)
+
 - ✅ Import/Export for backup and sharing
 - ✅ Plugin system for extensibility
 

@@ -289,20 +289,6 @@ envswitch import myenv-backup.tar.gz --force
 envswitch import --all ./backups
 ```
 
-### Terminal UI (Interactive Mode)
-
-```bash
-# Launch interactive TUI
-envswitch tui
-
-# Navigate with keyboard:
-#   ↑/↓ - Move selection
-#   Enter - View details / Switch
-#   r - Refresh
-#   d - Delete
-#   q/Esc - Quit
-```
-
 ### Plugin Management
 
 ```bash
@@ -327,20 +313,16 @@ envswitch plugin remove terraform
 
 | Tool           | Status         | What's Captured                                                 |
 | -------------- | -------------- | --------------------------------------------------------------- |
-| **GCloud CLI** | 🚧 In Progress | Authentication, active account, project, region, configurations |
-| **Kubectl**    | 🚧 In Progress | Contexts, clusters, current namespace, kubeconfig               |
-| **AWS CLI**    | 🚧 In Progress | Profiles, credentials, default region, config                   |
-| **Docker**     | 🚧 In Progress | Registry authentication, config.json                            |
-| **Git**        | 🚧 In Progress | User name, email, signing keys                                  |
-| **Azure CLI**  | 📅 Planned     | Authentication, subscriptions, defaults                         |
-| **Terraform**  | 📅 Planned     | Workspaces, backend config                                      |
-| **SSH**        | 📅 Planned     | SSH keys, config                                                |
+| **GCloud CLI** | ✅ Implemented | Authentication, active account, project, region, configurations |
+| **Kubectl**    | ✅ Implemented | Contexts, clusters, current namespace, kubeconfig               |
+| **AWS CLI**    | ✅ Implemented | Profiles, credentials, default region, config                   |
+| **Docker**     | ✅ Implemented | Registry authentication, config.json                            |
+| **Git**        | ✅ Implemented | User name, email, signing keys                                  |
+| **Plugins**    | ✅ Implemented | Any tool via plugin system (npm, vim, terraform, etc.)          |
 
-**Legend:**
+**All built-in tools are fully implemented!** ✅
 
-- ✅ Implemented
-- 🚧 In Progress
-- 📅 Planned
+Add support for additional tools using the [Plugin System](docs/PLUGINS.md) - no code required!
 
 ---
 
@@ -446,18 +428,6 @@ hooks:
       verify: true
 ```
 
-### Diff Environments
-
-```bash
-# Compare current state with environment
-envswitch diff work
-
-# Shows:
-# Modified:
-#   gcloud.account: personal@gmail.com → user@company.com
-#   kubectl.context: minikube → gke-company-cluster
-```
-
 ---
 
 ## 🎓 Examples
@@ -523,14 +493,7 @@ This project is in **early development**. Core features are being implemented.
 - ✅ Verbose mode for detailed logging
 - ✅ Plugin system with auto-activation (no code required for most plugins)
 
-**Planned:**
-
-- 📅 TUI (Terminal UI)
-- 📅 Encryption support
-- 📅 Git sync
-- 📅 Diff functionality
-
-See [PROJECT_STATUS.md](PROJECT_STATUS.md) for detailed roadmap.
+The project is feature-complete for its intended use case. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for details.
 
 ---
 
@@ -553,12 +516,11 @@ We'd love your help! EnvSwitch is open source and welcoming contributors.
 3. Read [GETTING_STARTED.md](GETTING_STARTED.md) for dev setup
 4. Create plugins - see [Plugin Documentation](docs/PLUGINS.md)
 
-**High-priority help needed:**
+**Help wanted:**
 
 - Creating new tool plugins (Terraform, Ansible, Helm, etc.)
 - Writing tests
 - Documentation and examples
-- TUI development
 - Testing on different platforms
 
 ---
@@ -591,15 +553,6 @@ Built for developers tired of manual environment switching.
 
 ---
 
-## 💬 Support & Community
-
-- **Documentation:** [README.md](README.md)
-- **Issues:** [GitHub Issues](https://github.com/hugofrely/envswitch/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/hugofrely/envswitch/discussions)
-- **Twitter:** [@hugofrely](https://twitter.com/hugofrely)
-
----
-
 ## ⚠️ Important Notice
 
 **This is alpha software.** Not recommended for production use yet.
@@ -612,14 +565,6 @@ cp -r ~/.config/gcloud ~/.config/gcloud.backup
 cp -r ~/.kube ~/.kube.backup
 cp -r ~/.aws ~/.aws.backup
 ```
-
----
-
-## 🌟 Star History
-
-If you find EnvSwitch useful, please consider starring the repository!
-
-[![Star History Chart](https://api.star-history.com/svg?repos=hugofrely/envswitch&type=Date)](https://star-history.com/#hugofrely/envswitch&Date)
 
 ---
 
