@@ -6,17 +6,15 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/hugofrely/envswitch/internal/updater"
+	"github.com/hugofrely/envswitch/internal/version"
 )
 
 var (
 	cfgFile string
 	verbose bool
 	debug   bool
-
-	// Version information - set via ldflags during build
-	Version   = "dev"
-	GitCommit = "unknown"
-	BuildDate = "unknown"
 )
 
 var rootCmd = &cobra.Command{
@@ -29,6 +27,7 @@ Think of it as snapshots for your CLI tools: when you switch from one
 environment to another, EnvSwitch automatically saves the current state
 (authentications, configurations, contexts) and restores the exact state
 of the target environment.`,
+	PersistentPreRun: checkForUpdates,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -40,7 +39,7 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	// Set version information
-	rootCmd.Version = fmt.Sprintf("%s (commit: %s, built: %s)", Version, GitCommit, BuildDate)
+	rootCmd.Version = fmt.Sprintf("%s (commit: %s, built: %s)", version.Version, version.GitCommit, version.BuildDate)
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.envswitch/config.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
@@ -69,6 +68,52 @@ func initConfig() {
 			fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 		}
 	}
+}
+
+// checkForUpdates is called before any command runs to check for new versions
+func checkForUpdates(cmd *cobra.Command, args []string) {
+	// Skip update check for certain commands
+	if cmd.Name() == "update" || cmd.Name() == "version" || cmd.Name() == "completion" || cmd.Name() == "help" {
+		return
+	}
+
+	// Skip if not in a terminal (e.g., piped output)
+	if !isTerminal() {
+		return
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return // Silently skip if we can't get home dir
+	}
+
+	configDir := home + "/.envswitch"
+	if !updater.ShouldCheckForUpdate(configDir) {
+		return
+	}
+
+	info, err := updater.CheckForUpdate()
+	if err != nil {
+		// Silently ignore update check failures
+		if debug {
+			fmt.Fprintf(os.Stderr, "Update check failed: %v\n", err)
+		}
+		return
+	}
+
+	if info.Available {
+		fmt.Fprintf(os.Stderr, "\n💡 New version available: %s → %s\n", info.CurrentVersion, info.LatestVersion)
+		fmt.Fprintf(os.Stderr, "   Run 'envswitch update' for update instructions\n\n")
+	}
+}
+
+// isTerminal checks if stdout is a terminal
+func isTerminal() bool {
+	fileInfo, err := os.Stdout.Stat()
+	if err != nil {
+		return false
+	}
+	return (fileInfo.Mode() & os.ModeCharDevice) != 0
 }
 
 // test

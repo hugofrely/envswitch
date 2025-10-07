@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/hugofrely/envswitch/internal/version"
 )
 
 func TestRootCommand(t *testing.T) {
@@ -12,7 +14,7 @@ func TestRootCommand(t *testing.T) {
 		assert.NotEmpty(t, rootCmd.Short)
 		assert.NotEmpty(t, rootCmd.Long)
 		assert.NotEmpty(t, rootCmd.Version) // Version is set dynamically
-		assert.Contains(t, rootCmd.Version, Version)
+		assert.Contains(t, rootCmd.Version, version.Version)
 	})
 
 	t.Run("has persistent flags", func(t *testing.T) {
@@ -114,15 +116,15 @@ func TestRootCommandSubcommands(t *testing.T) {
 
 func TestVersionInfo(t *testing.T) {
 	t.Run("version variables are defined", func(t *testing.T) {
-		assert.NotEmpty(t, Version)
-		assert.NotEmpty(t, GitCommit)
-		assert.NotEmpty(t, BuildDate)
+		assert.NotEmpty(t, version.Version)
+		assert.NotEmpty(t, version.GitCommit)
+		assert.NotEmpty(t, version.BuildDate)
 	})
 
 	t.Run("version string includes all components", func(t *testing.T) {
 		versionString := rootCmd.Version
 		assert.NotEmpty(t, versionString)
-		assert.Contains(t, versionString, Version)
+		assert.Contains(t, versionString, version.Version)
 		assert.Contains(t, versionString, "commit")
 		assert.Contains(t, versionString, "built")
 	})
