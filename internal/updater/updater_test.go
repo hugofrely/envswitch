@@ -182,12 +182,10 @@ func TestGetUpdateCommand(t *testing.T) {
 	cmd := GetUpdateCommand()
 	assert.NotEmpty(t, cmd)
 
-	if runtime.GOOS == "darwin" {
-		assert.Contains(t, cmd, "brew")
-	} else {
-		assert.Contains(t, cmd, "curl")
-		assert.Contains(t, cmd, "install.sh")
-	}
+	// Should always use the install script now (no Homebrew)
+	assert.Contains(t, cmd, "curl")
+	assert.Contains(t, cmd, "install.sh")
+	assert.Contains(t, cmd, "https://raw.githubusercontent.com/hugofrely/envswitch/main/install.sh")
 }
 
 func TestShouldCheckForUpdate(t *testing.T) {
