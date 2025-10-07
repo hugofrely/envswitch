@@ -1,0 +1,9 @@
+metadata:
+  name: vim
+  version: 1.0.0
+  description: Vim editor configuration and plugins
+  tool_name: vim
+  author: EnvSwitch Community
+  config_paths:
+    - $HOME/.vimrc
+    - $HOME/.vim

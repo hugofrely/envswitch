@@ -309,7 +309,7 @@ envswitch tui
 # List installed plugins
 envswitch plugin list
 
-# Install plugin
+# Install plugin (automatically activates in all environments)
 envswitch plugin install ./my-plugin
 
 # Show plugin information
@@ -319,7 +319,7 @@ envswitch plugin info terraform
 envswitch plugin remove terraform
 ```
 
-**📖 Plugin Development**: See [Plugin Documentation](docs/PLUGINS.md) for how to create and distribute your own plugins.
+**📖 Plugin Development**: EnvSwitch makes it easy to add support for new tools! Most plugins require **zero Go code**—just a simple YAML file. See [Plugin Documentation](docs/PLUGINS.md) to create your own plugin in 2 minutes.
 
 ---
 
@@ -521,11 +521,11 @@ This project is in **early development**. Core features are being implemented.
 - ✅ Auto-completion
 - ✅ Hooks system (pre/post switch)
 - ✅ Verbose mode for detailed logging
+- ✅ Plugin system with auto-activation (no code required for most plugins)
 
 **Planned:**
 
 - 📅 TUI (Terminal UI)
-- 📅 Plugin system
 - 📅 Encryption support
 - 📅 Git sync
 - 📅 Diff functionality

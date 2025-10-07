@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/hugofrely/envswitch/pkg/environment"
 	"github.com/hugofrely/envswitch/pkg/plugin"
 )
 
@@ -155,6 +156,14 @@ func runPluginInstall(cmd *cobra.Command, args []string) error {
 	fmt.Printf("✅ Plugin '%s' v%s installed successfully\n", manifest.Metadata.Name, manifest.Metadata.Version)
 	if manifest.Metadata.Description != "" {
 		fmt.Printf("   %s\n", manifest.Metadata.Description)
+	}
+
+	// Synchroniser le plugin avec tous les environnements existants
+	fmt.Println("🔄 Syncing plugin to existing environments...")
+	if err := environment.SyncPluginsToEnvironments(); err != nil {
+		fmt.Printf("⚠️  Warning: Failed to sync plugin to environments: %v\n", err)
+	} else {
+		fmt.Println("✅ Plugin enabled in all environments")
 	}
 
 	return nil

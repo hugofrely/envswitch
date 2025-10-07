@@ -17,6 +17,7 @@ import (
 	"github.com/hugofrely/envswitch/internal/hooks"
 	"github.com/hugofrely/envswitch/internal/logger"
 	"github.com/hugofrely/envswitch/pkg/environment"
+	"github.com/hugofrely/envswitch/pkg/plugin"
 	"github.com/hugofrely/envswitch/pkg/tools"
 )
 
@@ -468,6 +469,9 @@ func getToolRegistry() map[string]tools.Tool {
 		"docker":  tools.NewDockerTool(),
 	}
 
+	// Load plugins and add them as generic tools
+	loadPluginsIntoRegistry(allTools)
+
 	// Load config to check for excluded tools
 	cfg, err := config.LoadConfig()
 	if err != nil || cfg == nil || len(cfg.ExcludeTools) == 0 {
@@ -491,4 +495,64 @@ func getToolRegistry() map[string]tools.Tool {
 	}
 
 	return filteredTools
+}
+
+// loadPluginsIntoRegistry charge les plugins installés et les ajoute au registre
+func loadPluginsIntoRegistry(registry map[string]tools.Tool) {
+	plugins, err := plugin.ListInstalledPlugins()
+	if err != nil {
+		logger.Debug("Failed to load plugins: %v", err)
+		return
+	}
+
+	home, _ := os.UserHomeDir()
+
+	for _, p := range plugins {
+		toolName := p.Metadata.ToolName
+
+		// Cas 1: Multiple paths (config_paths)
+		if len(p.Metadata.ConfigPaths) > 0 {
+			// Expand environment variables in all paths
+			expandedPaths := make([]string, len(p.Metadata.ConfigPaths))
+			for i, path := range p.Metadata.ConfigPaths {
+				expandedPaths[i] = os.ExpandEnv(path)
+			}
+			logger.Debug("Using multiple config paths for '%s': %v", toolName, expandedPaths)
+			registry[toolName] = tools.NewMultiPathTool(toolName, expandedPaths)
+		} else {
+			// Cas 2: Single path (config_path or auto-detected)
+			var configPath string
+			if p.Metadata.ConfigPath != "" {
+				// Utiliser le chemin custom fourni dans plugin.yaml
+				configPath = os.ExpandEnv(p.Metadata.ConfigPath)
+				logger.Debug("Using custom config path for '%s': %s", toolName, configPath)
+			} else {
+				// Auto-détection basée sur le nom de l'outil
+				configPath = getConfigPathForTool(home, toolName)
+				logger.Debug("Using auto-detected config path for '%s': %s", toolName, configPath)
+			}
+
+			// Créer un GenericTool pour ce plugin
+			registry[toolName] = tools.NewGenericTool(toolName, configPath)
+		}
+
+		logger.Debug("Loaded plugin '%s' for tool '%s'", p.Metadata.Name, toolName)
+	}
+}
+
+// getConfigPathForTool retourne le chemin de config standard pour un outil
+// Cette fonction est un fallback pour les plugins qui ne spécifient pas config_path
+func getConfigPathForTool(home, toolName string) string {
+	// Convention par défaut: ~/.TOOLNAME ou ~/.TOOLNAMErc
+	// Les plugins devraient utiliser le champ config_path dans plugin.yaml
+	// pour des chemins spécifiques
+
+	// Essayer d'abord ~/.TOOLNAME (ex: ~/.vim, ~/.ssh)
+	dirPath := filepath.Join(home, "."+toolName)
+	if info, err := os.Stat(dirPath); err == nil && info.IsDir() {
+		return dirPath
+	}
+
+	// Sinon, utiliser ~/.TOOLNAMErc (ex: ~/.vimrc, ~/.npmrc)
+	return filepath.Join(home, "."+toolName+"rc")
 }

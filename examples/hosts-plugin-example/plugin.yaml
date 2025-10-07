@@ -1,0 +1,7 @@
+metadata:
+  name: hosts
+  version: 1.0.0
+  description: System hosts file (/etc/hosts)
+  tool_name: hosts
+  author: EnvSwitch Community
+  config_path: /etc/hosts

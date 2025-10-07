@@ -47,7 +47,9 @@ type Metadata struct {
 	Homepage    string   `yaml:"homepage,omitempty"`
 	License     string   `yaml:"license,omitempty"`
 	Tags        []string `yaml:"tags,omitempty"`
-	ToolName    string   `yaml:"tool_name"` // The tool this plugin supports
+	ToolName    string   `yaml:"tool_name"`              // The tool this plugin supports
+	ConfigPath  string   `yaml:"config_path,omitempty"`  // Optional: single custom config path (default: auto-detected)
+	ConfigPaths []string `yaml:"config_paths,omitempty"` // Optional: multiple config paths
 }
 
 // Manifest represents the plugin manifest file

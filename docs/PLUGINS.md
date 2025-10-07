@@ -1,807 +1,524 @@
-# EnvSwitch Plugin System
+# EnvSwitch Plugin Guide
 
-Les plugins permettent d'ajouter le support de nouveaux outils à EnvSwitch (en plus de gcloud, kubectl, aws, docker, git).
+Create plugins to add support for any tool in 2 minutes - **no code required!**
 
-## Table des matières
+## Quick Start: Create a Plugin in 2 Minutes
 
-- [Vue d'ensemble](#vue-densemble)
-- [Architecture d'un plugin](#architecture-dun-plugin)
-- [Créer un plugin simple](#créer-un-plugin-simple)
-- [Exemple complet: Plugin NPM](#exemple-complet-plugin-npm)
-- [Installer et gérer les plugins](#installer-et-gérer-les-plugins)
-- [Structure du manifest](#structure-du-manifest)
-- [Tester votre plugin](#tester-votre-plugin)
-
----
-
-## Vue d'ensemble
-
-Un plugin EnvSwitch est simplement:
-
-1. Un dossier avec un fichier `plugin.yaml`
-2. Le fichier décrit quel outil le plugin supporte
-3. Le plugin capture et restaure la configuration de l'outil
-
-**Où sont stockés les plugins:**
-```
-~/.envswitch/plugins/
-├── npm/
-│   └── plugin.yaml
-├── terraform/
-│   └── plugin.yaml
-└── ansible/
-    └── plugin.yaml
-```
-
----
-
-## Architecture d'un plugin
-
-### Plugin simple (YAML seulement)
-
-```
-npm-plugin/
-├── plugin.yaml          # Manifest (obligatoire)
-├── README.md           # Documentation
-└── LICENSE             # Licence (optionnel)
-```
-
-### Plugin avancé (avec code Go)
-
-```
-terraform-plugin/
-├── plugin.yaml         # Manifest (obligatoire)
-├── main.go            # Point d'entrée
-├── terraform.go       # Implémentation du plugin
-├── go.mod             # Dépendances Go
-├── go.sum
-├── README.md          # Documentation
-├── LICENSE
-└── examples/          # Exemples d'usage
-    └── example.yaml
-```
-
-### Architecture détaillée d'un plugin complet
-
-```
-my-tool-plugin/
-│
-├── plugin.yaml              # Manifest principal
-│
-├── src/                     # Code source (si plugin avancé)
-│   ├── main.go             # Entry point
-│   ├── plugin.go           # Implémentation Plugin interface
-│   ├── snapshot.go         # Logique de snapshot
-│   ├── restore.go          # Logique de restore
-│   └── utils.go            # Fonctions helpers
-│
-├── tests/                   # Tests
-│   ├── plugin_test.go
-│   └── integration_test.go
-│
-├── examples/                # Exemples et templates
-│   ├── basic/
-│   │   └── config.yaml
-│   └── advanced/
-│       └── config.yaml
-│
-├── docs/                    # Documentation
-│   ├── USAGE.md
-│   └── TROUBLESHOOTING.md
-│
-├── scripts/                 # Scripts utilitaires
-│   ├── install.sh
-│   └── test.sh
-│
-├── go.mod                   # Si plugin Go
-├── go.sum
-├── Makefile                # Commandes de build
-├── README.md               # Documentation principale
-├── LICENSE
-└── .gitignore
-```
-
-### Structure minimale recommandée
-
-Pour démarrer rapidement:
-
-```
-my-plugin/
-├── plugin.yaml       # Obligatoire
-└── README.md        # Recommandé
-```
-
----
-
-## Créer un plugin simple
-
-### Étape 1: Créer le dossier
+### 1. Create Plugin Directory
 
 ```bash
-mkdir npm-plugin
-cd npm-plugin
+mkdir my-plugin
+cd my-plugin
 ```
 
-### Étape 2: Créer le manifest `plugin.yaml`
+### 2. Create `plugin.yaml`
 
 ```yaml
-metadata:
-  name: npm
-  version: 1.0.0
-  description: NPM registry and authentication
-  author: Votre Nom
-  tool_name: npm
-```
-
-### Étape 3: Créer le README.md
-
-```markdown
-# NPM Plugin for EnvSwitch
-
-Capture et restaure la configuration NPM.
-
-## Installation
-
-envswitch plugin install ./npm-plugin
-
-## Ce qui est capturé
-
-- ~/.npmrc (configuration et auth)
-```
-
-C'est tout! Le plugin est prêt à être installé.
-
----
-
-## Exemple complet: Plugin NPM
-
-Créons un plugin qui capture la configuration NPM (registry, authentification, etc.)
-
-### Structure du projet
-
-```
-npm-plugin/
-├── plugin.yaml
-└── README.md
-```
-
-### plugin.yaml
-
-```yaml
-metadata:
-  name: npm
-  version: 1.0.0
-  description: NPM registry and authentication management
-  author: EnvSwitch Community
-  homepage: https://github.com/envswitch/npm-plugin
-  license: MIT
-  tool_name: npm
-  tags:
-    - npm
-    - nodejs
-    - registry
-```
-
-### README.md
-
-```markdown
-# EnvSwitch NPM Plugin
-
-Plugin pour gérer les configurations NPM avec EnvSwitch.
-
-## Installation
-
-git clone https://github.com/username/npm-plugin
-envswitch plugin install ./npm-plugin
-
-## Ce qui est capturé
-
-- `~/.npmrc` - Configuration NPM globale
-- Registry URL
-- Authentification tokens
-- Proxy settings
-
-## Usage
-
-### Créer des environnements
-
-bash
-# Environnement travail
-npm config set registry https://npm.company.com
-npm login
-envswitch create work --from-current
-
-# Environnement personnel
-npm config set registry https://registry.npmjs.org/
-npm login
-envswitch create personal --from-current
-
-
-### Switcher entre environnements
-
-bash
-envswitch switch work      # Registry d'entreprise
-envswitch switch personal  # Registry public
-
-
-## Prérequis
-
-- EnvSwitch v0.1.0+
-- NPM installé
-
-## Support
-
-Ouvrez une issue sur: https://github.com/username/npm-plugin/issues
-```
-
-### Ce que le plugin capture
-
-Le plugin NPM capture automatiquement:
-
-- `~/.npmrc` - Configuration NPM globale
-- Registry URL
-- Authentification tokens
-- Proxy settings
-- Configuration custom
-
-### Exemple de configuration NPM
-
-Voici ce que contient typiquement un `.npmrc`:
-
-```ini
-registry=https://registry.npmjs.org/
-//registry.npmjs.org/:_authToken=npm_xxxxxxxxxxxxx
-@mycompany:registry=https://npm.mycompany.com/
-//npm.mycompany.com/:_authToken=xxxxxxxxxxxxx
-```
-
-### Comment ça fonctionne
-
-Quand vous faites `envswitch switch`:
-
-1. **Snapshot**: EnvSwitch copie `~/.npmrc` dans l'environnement actuel
-2. **Restore**: EnvSwitch restaure le `~/.npmrc` de l'environnement cible
-
-### Cas d'usage réels
-
-**Scénario 1: Travail vs Personnel**
-
-```bash
-# Environnement travail
-cat ~/.npmrc
-# registry=https://npm.company.com
-# //npm.company.com/:_authToken=work_token
-
-envswitch create work --from-current
-
-# Environnement personnel
-npm config set registry https://registry.npmjs.org/
-npm login  # Avec vos credentials personnels
-
-envswitch create personal --from-current
-
-# Maintenant vous pouvez switcher instantanément:
-envswitch switch work      # Registry d'entreprise + auth
-envswitch switch personal  # Registry public + auth perso
-```
-
-**Scénario 2: Multiple clients**
-
-```bash
-# Client A
-npm config set registry https://npm.clientA.com
-npm config set //npm.clientA.com/:_authToken token_A
-envswitch create clientA --from-current
-
-# Client B
-npm config set registry https://npm.clientB.com
-npm config set //npm.clientB.com/:_authToken token_B
-envswitch create clientB --from-current
-
-# Switch facilement entre les clients
-envswitch switch clientA
-envswitch switch clientB
-```
-
----
-
-## Installer et gérer les plugins
-
-### Lister les plugins installés
-
-```bash
-envswitch plugin list
-```
-
-Exemple de sortie:
-```
-Installed plugins:
-
-  • npm v1.0.0
-    NPM registry and authentication management
-    Tool: npm
-
-  • terraform v1.0.0
-    Terraform workspace management
-    Tool: terraform
-
-Total: 2 plugin(s)
-```
-
-### Installer un plugin
-
-```bash
-# Depuis un dossier local
-envswitch plugin install ./npm-plugin
-
-# Depuis un repo Git
-git clone https://github.com/user/npm-plugin
-envswitch plugin install ./npm-plugin
-```
-
-Sortie:
-```
-✅ Plugin 'npm' v1.0.0 installed successfully
-   NPM registry and authentication management
-```
-
-### Voir les infos d'un plugin
-
-```bash
-envswitch plugin info npm
-```
-
-Sortie:
-```
-Plugin: npm
-Version: 1.0.0
-Description: NPM registry and authentication management
-Author: EnvSwitch Community
-Homepage: https://github.com/envswitch/npm-plugin
-License: MIT
-Tool: npm
-Tags: [npm nodejs registry]
-```
-
-### Supprimer un plugin
-
-```bash
-envswitch plugin remove npm
-```
-
----
-
-## Structure du manifest
-
-Le fichier `plugin.yaml` contient les métadonnées de votre plugin.
-
-### Champs obligatoires
-
-```yaml
-metadata:
-  name: npm              # Nom unique (lowercase, tirets)
-  version: 1.0.0         # Version sémantique
-  tool_name: npm         # Nom de l'outil
-```
-
-### Champs optionnels
-
-```yaml
-metadata:
-  description: Description courte du plugin
-  author: Votre Nom
-  homepage: https://github.com/user/plugin
-  license: MIT
-  tags:
-    - npm
-    - nodejs
-```
-
-### Exemples de manifests
-
-**Plugin Terraform:**
-```yaml
-metadata:
-  name: terraform
-  version: 1.0.0
-  description: Terraform workspace and state management
-  tool_name: terraform
-  author: Community
-  tags:
-    - terraform
-    - iac
-```
-
-**Plugin Ansible:**
-```yaml
-metadata:
-  name: ansible
-  version: 1.0.0
-  description: Ansible inventory and vault management
-  tool_name: ansible
-  author: Community
-  tags:
-    - ansible
-    - automation
-```
-
-**Plugin Helm:**
-```yaml
-metadata:
-  name: helm
-  version: 1.0.0
-  description: Helm repositories and configuration
-  tool_name: helm
-  author: Community
-  tags:
-    - helm
-    - kubernetes
-```
-
----
-
-## Tester votre plugin
-
-### Test manuel rapide
-
-1. **Créer un environnement test:**
-```bash
-envswitch create test-npm --empty
-```
-
-2. **Configurer NPM:**
-```bash
-npm config set registry https://test-registry.com
-echo "Test config" >> ~/.npmrc
-```
-
-3. **Activer le plugin:**
-
-Éditer `~/.envswitch/environments/test-npm/metadata.yaml`:
-```yaml
-tools:
-  npm:
-    enabled: true
-    snapshot_path: ""
-```
-
-4. **Tester le snapshot:**
-```bash
-envswitch switch test-npm
-```
-
-5. **Vérifier le snapshot:**
-```bash
-ls ~/.envswitch/environments/test-npm/snapshots/npm/
-cat ~/.envswitch/environments/test-npm/snapshots/npm/.npmrc
-```
-
-6. **Tester la restauration:**
-```bash
-# Modifier la config
-npm config set registry https://different-registry.com
-
-# Switcher pour restaurer
-envswitch switch test-npm
-
-# Vérifier que c'est restauré
-npm config get registry
-# Devrait afficher: https://test-registry.com
-```
-
----
-
-## Fichiers capturés par outil
-
-Voici ce que les plugins typiques capturent:
-
-### NPM
-- `~/.npmrc` - Configuration globale
-
-### Yarn
-- `~/.yarnrc` - Configuration Yarn 1.x
-- `~/.yarnrc.yml` - Configuration Yarn 2+
-
-### Python/Pip
-- `~/.pip/pip.conf` - Configuration pip
-- `~/.pypirc` - Credentials PyPI
-
-### Terraform
-- `~/.terraform.d/` - Configuration CLI
-- `~/.terraformrc` - Credentials
-
-### Ansible
-- `~/.ansible.cfg` - Configuration
-- `~/.ansible/` - Collections, plugins
-
-### Helm
-- `~/.config/helm/` - Configuration
-- `~/.cache/helm/` - Repository cache
-
-### Git
-- `~/.gitconfig` - Configuration globale
-- `~/.git-credentials` - Credentials
-
-### Docker
-- `~/.docker/config.json` - Configuration et auth
-
-### Maven
-- `~/.m2/settings.xml` - Configuration et repositories
-
-### Gradle
-- `~/.gradle/gradle.properties` - Configuration
-
----
-
-## Créer un plugin avancé (optionnel)
-
-Si vous avez besoin de logique custom (par exemple, exécuter des commandes), vous pouvez créer un plugin en Go.
-
-### Structure complète avec Go
-
-```
-npm-plugin/
-├── plugin.yaml           # Manifest
-├── main.go              # Entry point
-├── plugin.go            # Implémentation
-├── go.mod
-├── go.sum
-├── README.md
-├── LICENSE
-└── tests/
-    └── plugin_test.go
-```
-
-### Exemple minimal en Go
-
-**main.go:**
-```go
-package main
-
-import (
-    "os"
-    "path/filepath"
-    "os/exec"
-)
-
-type NPMPlugin struct {
-    ConfigFile string // ~/.npmrc
-}
-
-func NewNPMPlugin() *NPMPlugin {
-    home, _ := os.UserHomeDir()
-    return &NPMPlugin{
-        ConfigFile: filepath.Join(home, ".npmrc"),
-    }
-}
-
-func (n *NPMPlugin) Name() string {
-    return "npm"
-}
-
-func (n *NPMPlugin) IsInstalled() bool {
-    _, err := exec.LookPath("npm")
-    return err == nil
-}
-
-// Snapshot copie ~/.npmrc vers le snapshot
-func (n *NPMPlugin) Snapshot(destPath string) error {
-    os.MkdirAll(destPath, 0755)
-
-    // Copier .npmrc
-    data, err := os.ReadFile(n.ConfigFile)
-    if err != nil {
-        return err
-    }
-
-    return os.WriteFile(
-        filepath.Join(destPath, ".npmrc"),
-        data,
-        0644,
-    )
-}
-
-// Restore restaure ~/.npmrc depuis le snapshot
-func (n *NPMPlugin) Restore(sourcePath string) error {
-    snapshotFile := filepath.Join(sourcePath, ".npmrc")
-
-    data, err := os.ReadFile(snapshotFile)
-    if err != nil {
-        return err
-    }
-
-    return os.WriteFile(n.ConfigFile, data, 0644)
-}
-```
-
-**go.mod:**
-```go
-module github.com/username/npm-plugin
-
-go 1.21
-```
-
-Mais dans la plupart des cas, un simple `plugin.yaml` suffit!
-
----
-
-## Exemples de structure de projets réels
-
-### 1. Plugin simple (NPM)
-
-```
-npm-plugin/
-├── plugin.yaml
-└── README.md
-```
-
-**Usage:** Capture automatique de `~/.npmrc`
-
-### 2. Plugin moyen (Terraform)
-
-```
-terraform-plugin/
-├── plugin.yaml
-├── README.md
-├── LICENSE
-└── examples/
-    └── terraform.tfvars.example
-```
-
-**Usage:** Capture `~/.terraform.d/` + doc détaillée
-
-### 3. Plugin avancé (Custom Tool)
-
-```
-custom-plugin/
-├── plugin.yaml
-├── main.go
-├── plugin.go
-├── snapshot.go
-├── restore.go
-├── utils.go
-├── go.mod
-├── go.sum
-├── README.md
-├── LICENSE
-├── Makefile
-├── tests/
-│   ├── plugin_test.go
-│   └── integration_test.go
-├── examples/
-│   ├── basic.yaml
-│   └── advanced.yaml
-└── docs/
-    ├── USAGE.md
-    └── TROUBLESHOOTING.md
-```
-
-**Usage:** Logique custom en Go pour outils complexes
-
----
-
-## Partager votre plugin
-
-### Sur GitHub
-
-1. **Créer un repo:**
-```bash
-mkdir npm-plugin
-cd npm-plugin
-
-# Créer les fichiers
-cat > plugin.yaml << 'EOF'
 metadata:
   name: npm
   version: 1.0.0
   description: NPM registry and authentication
   tool_name: npm
   author: Your Name
-  homepage: https://github.com/yourusername/npm-plugin
-  license: MIT
-EOF
+  config_path: $HOME/.npmrc
+```
 
-cat > README.md << 'EOF'
-# NPM Plugin for EnvSwitch
+### 3. Install
 
-Capture et restaure la configuration NPM.
+```bash
+envswitch plugin install .
+```
 
-## Installation
-git clone https://github.com/yourusername/npm-plugin
+**That's it!** The plugin:
+- ✅ Is installed in `~/.envswitch/plugins/npm/`
+- ✅ Is automatically activated in ALL environments
+- ✅ Captures `~/.npmrc` during every switch
+
+## Configuration Options
+
+You have **three options** for specifying config paths:
+
+### Option 1: Auto-detection (Simple)
+
+Let EnvSwitch automatically detect the config path:
+
+```yaml
+metadata:
+  tool_name: npm
+```
+
+EnvSwitch will:
+1. Check if `~/.npm/` exists (directory) → use it
+2. Otherwise → use `~/.npmrc` (file)
+
+**Best for**: Standard tools following `~/.TOOLNAME` or `~/.TOOLNAMErc` convention
+
+### Option 2: Single Path (Recommended)
+
+Specify an explicit path:
+
+```yaml
+metadata:
+  tool_name: npm
+  config_path: $HOME/.npmrc
+```
+
+You can use:
+- Environment variables: `$HOME`, `$XDG_CONFIG_HOME`
+- Absolute paths: `/etc/hosts`
+- Paths outside `$HOME/`: `/usr/local/etc/app.conf`
+
+**Best for**: Most use cases where you want explicit control
+
+### Option 3: Multiple Paths (Advanced)
+
+Capture multiple files/directories:
+
+```yaml
+metadata:
+  tool_name: vim
+  config_paths:
+    - $HOME/.vimrc
+    - $HOME/.vim
+```
+
+**Best for**: Tools with configs in multiple locations
+
+## How It Works
+
+### Auto-Detection Flow
+
+```
+plugin.yaml (tool_name: "npm")
+         ↓
+Load installed plugin
+         ↓
+Auto-detect path: "npm" → "~/.npmrc"
+         ↓
+Create GenericTool with this path
+         ↓
+Snapshot: copy ~/.npmrc → snapshots/npm/
+         ↓
+Restore: copy snapshots/npm/ → ~/.npmrc
+```
+
+### Custom Path Flow
+
+```
+plugin.yaml (config_path: "/etc/hosts")
+         ↓
+Load installed plugin
+         ↓
+Use custom path: "/etc/hosts"
+         ↓
+Create GenericTool with this path
+         ↓
+Snapshot: copy /etc/hosts → snapshots/hosts/
+         ↓
+Restore: copy snapshots/hosts/ → /etc/hosts
+```
+
+### Multiple Paths Flow
+
+```
+plugin.yaml (config_paths: ["~/.vimrc", "~/.vim"])
+         ↓
+Load installed plugin
+         ↓
+Create MultiPathTool with these paths
+         ↓
+Snapshot: copy both ~/.vimrc and ~/.vim/
+         ↓
+Restore: restore both files/directories
+```
+
+## Example Plugins
+
+### NPM Plugin
+
+**File**: `examples/npm-plugin-example/`
+
+```yaml
+metadata:
+  name: npm
+  version: 1.0.0
+  description: NPM registry and authentication management
+  tool_name: npm
+  config_path: $HOME/.npmrc
+```
+
+Captures: `~/.npmrc`
+
+**Use case**: Switch between company and public npm registries
+
+### Vim Plugin
+
+**File**: `examples/vim-plugin-example/`
+
+```yaml
+metadata:
+  name: vim
+  version: 1.0.0
+  description: Vim editor configuration and plugins
+  tool_name: vim
+  config_paths:
+    - $HOME/.vimrc
+    - $HOME/.vim
+```
+
+Captures: Both `~/.vimrc` AND `~/.vim/`
+
+**Use case**: Different vim configs for different projects
+
+### Hosts Plugin
+
+**File**: `examples/hosts-plugin-example/`
+
+```yaml
+metadata:
+  name: hosts
+  version: 1.0.0
+  description: System hosts file (/etc/hosts)
+  tool_name: hosts
+  config_path: /etc/hosts
+```
+
+Captures: `/etc/hosts` (system file outside `$HOME/`)
+
+**Use case**: Switch between development and production DNS entries
+
+## Complete Workflow
+
+### 1. Install Plugin
+
+```bash
 envswitch plugin install ./npm-plugin
-EOF
+```
 
+Output:
+```
+✅ Plugin 'npm' v1.0.0 installed successfully
+   NPM registry and authentication
+🔄 Syncing plugin to existing environments...
+✅ Plugin enabled in all environments
+```
+
+### 2. Configure Tool
+
+```bash
+npm config set registry https://npm.mycompany.com
+npm login
+```
+
+### 3. Create Environment
+
+```bash
+envswitch create work --from-current
+```
+
+The NPM config (`~/.npmrc`) is automatically captured!
+
+### 4. Switch Between Environments
+
+```bash
+# Change config
+npm config set registry https://registry.npmjs.org/
+npm login
+
+# Create another environment
+envswitch create personal --from-current
+
+# Switch easily
+envswitch switch work      # → Company config
+envswitch switch personal  # → Personal config
+```
+
+## Real-World Use Cases
+
+### Multiple Clients
+
+```bash
+# Client A
+npm config set registry https://npm.clientA.com
+npm login
+envswitch create clientA --from-current
+
+# Client B
+npm config set registry https://npm.clientB.com
+npm login
+envswitch create clientB --from-current
+
+# Switch instantly
+envswitch switch clientA  # All Client A config
+envswitch switch clientB  # All Client B config
+```
+
+### Work vs Personal
+
+```bash
+# Work (with proxy)
+npm config set registry https://npm.company.com
+npm config set proxy http://proxy:8080
+npm login
+envswitch create work --from-current
+
+# Personal (no proxy)
+npm config set registry https://registry.npmjs.org/
+npm config delete proxy
+npm login
+envswitch create personal --from-current
+
+# Switch
+envswitch switch work      # Company config + proxy
+envswitch switch personal  # Personal config
+```
+
+## Plugin Management
+
+### List Plugins
+
+```bash
+envswitch plugin list
+```
+
+Output:
+```
+Installed plugins:
+
+  • npm v1.0.0
+    NPM registry and authentication
+    Tool: npm
+
+  • vim v1.0.0
+    Vim editor configuration
+    Tool: vim
+
+Total: 2 plugin(s)
+```
+
+### Show Plugin Info
+
+```bash
+envswitch plugin info npm
+```
+
+Output:
+```
+Plugin: npm
+Version: 1.0.0
+Description: NPM registry and authentication
+Tool: npm
+```
+
+### Remove Plugin
+
+```bash
+envswitch plugin remove npm
+```
+
+## Testing Your Plugin
+
+```bash
+# 1. Create test environment
+envswitch create test-plugin --from-current
+
+# 2. Verify snapshot was created
+ls -la ~/.envswitch/environments/test-plugin/snapshots/TOOLNAME/
+
+# 3. Modify tool config
+# (use your tool's config commands)
+
+# 4. Switch to restore
+envswitch switch test-plugin
+
+# 5. Verify config was restored
+# (check your tool's config)
+```
+
+## Debugging
+
+### Verify Snapshots
+
+```bash
+# List snapshots
+ls -la ~/.envswitch/environments/*/snapshots/npm/
+
+# View snapshot content
+cat ~/.envswitch/environments/work/snapshots/npm/.npmrc
+```
+
+### Verbose Mode
+
+```bash
+envswitch switch work --verbose
+```
+
+Output:
+```
+[DEBUG] Using custom config path for 'npm': /Users/you/.npmrc
+[DEBUG] Loaded plugin 'npm' for tool 'npm'
+[DEBUG] Snapshotting npm...
+[DEBUG] Restoring npm...
+✅ Successfully switched to 'work' (1.02s)
+```
+
+### Common Issues
+
+**Plugin not activated:**
+
+Reinstall it - plugins auto-activate on install:
+```bash
+envswitch plugin install ./my-plugin
+```
+
+**Config not captured:**
+
+Check that the config file exists:
+```bash
+ls -la ~/.npmrc  # For NPM example
+```
+
+**Config in non-standard location:**
+
+Use the `config_path` field in `plugin.yaml`:
+```yaml
+config_path: /custom/path/to/config
+```
+
+## When Do You Need Go Code?
+
+**You DON'T need Go code for**:
+- ✅ Single file/directory in `$HOME/`
+- ✅ Single file/directory outside `$HOME/` (use `config_path`)
+- ✅ Multiple files/directories (use `config_paths`)
+- ✅ Environment variable expansion
+- ✅ 95% of all tools!
+
+**You ONLY need Go code for**:
+- Complex logic (parsing, transforming configs)
+- Running commands before/after snapshot
+- Conditional behavior based on system state
+- Custom validation or verification
+
+For 95% of tools, **YAML is enough**!
+
+## Distributing Your Plugin
+
+### On GitHub
+
+```bash
+# Create repo
 git init
-git add .
+git add plugin.yaml README.md
 git commit -m "Initial commit"
-git remote add origin https://github.com/yourusername/npm-plugin
+git remote add origin https://github.com/YOU/plugin-name
 git push -u origin main
 ```
 
-2. **Les utilisateurs peuvent installer:**
+### Install from GitHub
+
 ```bash
-git clone https://github.com/yourusername/npm-plugin
-envswitch plugin install ./npm-plugin
+git clone https://github.com/YOU/plugin-name
+envswitch plugin install ./plugin-name
 ```
 
----
+## Suggested Plugins
 
-## Exemples de plugins utiles
+Help the community by creating these plugins:
 
-Voici des idées de plugins que vous pourriez créer:
-
-### Outils de développement
-- **npm** - Registries et auth ✅ (exemple ci-dessus)
-- **yarn** - Configuration yarn
-- **pnpm** - Configuration pnpm
-- **pip** - Python package index
-- **gem** - Ruby gems
-- **cargo** - Rust packages
-- **composer** - PHP packages
+### Package Managers
+- **yarn** - Node.js alternative
+- **pnpm** - Performant Node.js
+- **pip** - Python
+- **poetry** - Modern Python
+- **gem** - Ruby
+- **cargo** - Rust
+- **composer** - PHP
+- **go** - Go modules
 
 ### Infrastructure
-- **terraform** - Workspaces et state
-- **ansible** - Inventories et vaults
-- **pulumi** - Stacks et configs
-- **CDK** - AWS CDK configuration
+- **terraform** - Infrastructure as Code
+- **terragrunt** - Terraform wrapper
+- **ansible** - Configuration management
+- **pulumi** - Modern IaC
+- **helm** - Kubernetes packages
 
-### Cloud & Kubernetes
-- **helm** - Repositories et charts
-- **kustomize** - Configuration
-- **eksctl** - EKS clusters
+### Cloud
+- **azure** - Azure CLI
+- **doctl** - DigitalOcean CLI
+- **heroku** - Heroku CLI
+- **fly** - Fly.io CLI
 
-### Autres
-- **ssh** - SSH keys et config
+### Dev Tools
+- **gh** - GitHub CLI
+- **git-credential** - Git credentials
+- **ssh** - SSH config/keys
 - **gpg** - GPG keys
-- **vscode** - Settings et extensions
-- **postgres** - psql configuration
-
----
-
-## Support et contribution
-
-### Besoin d'aide?
-
-- **Documentation**: [README principal](../README.md)
-- **Issues**: [GitHub Issues](https://github.com/hugofrely/envswitch/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/hugofrely/envswitch/discussions)
-
-### Contribuer
-
-Votre plugin pourrait aider d'autres développeurs! N'hésitez pas à:
-
-1. Créer un repo GitHub pour votre plugin
-2. Documenter l'installation et l'usage
-3. Partager le lien dans les discussions EnvSwitch
-
----
 
 ## FAQ
 
-**Q: Est-ce que je dois savoir Go pour créer un plugin?**
+**Q: Do I need to write code?**
 
-Non! Un simple fichier `plugin.yaml` suffit pour la plupart des cas. EnvSwitch gère automatiquement la copie des fichiers de configuration.
+No! A simple `plugin.yaml` file is enough for 95% of cases.
 
-**Q: Combien de temps ça prend pour créer un plugin?**
+**Q: Is the plugin automatically activated?**
 
-5 minutes pour un plugin simple (juste le YAML). Le plugin NPM ci-dessus peut être créé en moins de 5 minutes.
+Yes! Upon installation, it's activated in ALL existing environments.
 
-**Q: Quelle est la structure minimale?**
+**Q: Can I disable a plugin in one environment?**
 
-Juste un fichier `plugin.yaml` avec les 3 champs obligatoires (name, version, tool_name).
+Yes, edit `~/.envswitch/environments/NAME/metadata.yaml`:
+```yaml
+tools:
+  npm:
+    enabled: false
+```
 
-**Q: Est-ce que les plugins peuvent contenir des credentials?**
+**Q: Where are snapshots stored?**
 
-Oui, mais faites attention. Les snapshots contiennent vos fichiers de config incluant les tokens. C'est justement le but (garder vos auth séparées par environnement).
+```
+~/.envswitch/environments/ENV_NAME/snapshots/TOOL_NAME/
+```
 
-**Q: Comment contribuer un plugin officiel?**
+**Q: How do I share my plugin?**
 
-Créez votre plugin, testez-le, puis ouvrez une issue dans le repo EnvSwitch pour proposer de l'ajouter aux plugins officiels.
+Publish on GitHub and share the link. Users can:
+```bash
+git clone https://github.com/YOU/plugin
+envswitch plugin install ./plugin
+```
 
-**Q: Les plugins fonctionnent sur tous les OS?**
+**Q: My tool doesn't use ~/.TOOLRC, what do I do?**
 
-Oui, tant que l'outil lui-même est supporté sur cet OS.
+Use the `config_path` field:
+```yaml
+config_path: /custom/path/to/config
+```
 
-**Q: Puis-je avoir plusieurs versions d'un plugin?**
+**Q: Can I capture multiple files?**
 
-Pour l'instant non, un seul plugin par outil. Mais vous pouvez mettre à jour un plugin existant.
+Yes! Use `config_paths`:
+```yaml
+config_paths:
+  - $HOME/.vimrc
+  - $HOME/.vim
+```
+
+**Q: Are credentials secure?**
+
+Snapshots are in `~/.envswitch/` with standard Unix permissions. Use FileVault (macOS) or equivalent for encryption.
+
+## Support
+
+- **Main Documentation**: [README.md](../README.md)
+- **Examples**: [examples/](../examples/)
+- **Issues**: [GitHub Issues](https://github.com/hugofrely/envswitch/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/hugofrely/envswitch/discussions)
+
+## Summary
+
+1. Create `plugin.yaml` with `tool_name` and optional `config_path`/`config_paths`
+2. Run `envswitch plugin install .`
+3. **Done!** Plugin is active everywhere automatically
+
+**No Go code needed for most plugins!**

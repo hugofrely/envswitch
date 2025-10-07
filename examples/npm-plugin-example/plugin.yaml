@@ -1,0 +1,7 @@
+metadata:
+  name: npm
+  version: 1.0.0
+  description: NPM registry and authentication management
+  tool_name: npm
+  author: EnvSwitch Community
+  config_path: $HOME/.npmrc

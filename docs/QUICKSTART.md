@@ -455,9 +455,64 @@ envswitch config set log_level debug
 - Reload your shell: `source ~/.bashrc` (or .zshrc)
 - Check config: `envswitch config get enable_prompt_integration`
 
+## Plugin System
+
+Want to add support for new tools like npm, terraform, or pip? EnvSwitch makes it incredibly simple!
+
+### Creating a Plugin (2 minutes, no code required!)
+
+Most plugins need **zero Go code**—just a simple YAML file:
+
+```bash
+# 1. Create plugin directory
+mkdir my-tool-plugin
+cd my-tool-plugin
+
+# 2. Create plugin.yaml
+cat > plugin.yaml << 'EOF'
+metadata:
+  name: my-tool
+  version: 1.0.0
+  description: Support for my-tool
+  tool_name: my-tool
+  author: Your Name
+EOF
+
+# 3. Install plugin
+envswitch plugin install .
+```
+
+**That's it!** The plugin is automatically:
+- ✅ Installed
+- ✅ Activated in ALL your environments
+- ✅ Capturing config during every switch
+
+EnvSwitch automatically detects config file locations:
+- `npm` → `~/.npmrc`
+- `yarn` → `~/.yarnrc`
+- `pip` → `~/.pip/pip.conf`
+- `terraform` → `~/.terraform.d/`
+- Custom tools → `~/.TOOLNAME` or `~/.TOOLNAMErc`
+
+### Managing Plugins
+
+```bash
+# List installed plugins
+envswitch plugin list
+
+# Show plugin details
+envswitch plugin info npm
+
+# Remove plugin
+envswitch plugin remove npm
+```
+
+📖 **Full plugin guide**: See [Plugin Documentation](../docs/PLUGINS.md) for complete examples and advanced features.
+
 ## What's Next?
 
 - 📖 Read the [full documentation](../README.md)
+- 🔌 Create your own plugins with [Plugin Documentation](../docs/PLUGINS.md)
 - 🚀 Check out [versioning system](../VERSIONING.md)
 - 🐛 [Report issues](https://github.com/hugofrely/envswitch/issues)
 - 💬 [Join discussions](https://github.com/hugofrely/envswitch/discussions)
@@ -491,12 +546,12 @@ envswitch config set log_level debug
   - Verbose mode for detailed logging
   - Backup configuration options
 
-- 🚧 **Phase 3 (Advanced Features)**: NEXT
+- 🚧 **Phase 3 (Advanced Features)**: IN PROGRESS
+  - ✅ Plugin system with auto-activation (no code required)
   - Encryption support
   - TUI (Terminal UI)
   - Template system
   - Git sync
-  - Plugin system
 
 ## Contributing
 
