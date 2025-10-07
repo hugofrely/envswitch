@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"runtime"
 
 	"github.com/spf13/cobra"
 
@@ -45,13 +44,20 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  Latest version:  %s\n", info.LatestVersion)
 	fmt.Printf("  Release URL:     %s\n\n", info.ReleaseURL)
 
-	fmt.Println("To update, run:")
+	fmt.Println("To update, run one of the following:")
+	fmt.Println()
+	fmt.Printf("  # Using curl:\n")
 	fmt.Printf("  %s\n\n", updater.GetUpdateCommand())
+	fmt.Printf("  # Or using wget:\n")
+	fmt.Printf("  wget -qO- https://raw.githubusercontent.com/hugofrely/envswitch/main/install.sh | bash\n\n")
 
-	if info.DownloadURL != "" && runtime.GOOS == "linux" {
-		fmt.Printf("Or download directly:\n")
-		fmt.Printf("  %s\n", info.DownloadURL)
+	if info.DownloadURL != "" {
+		fmt.Printf("Or download the binary directly for your platform:\n")
+		fmt.Printf("  %s\n\n", info.DownloadURL)
 	}
+
+	fmt.Printf("For more installation options, visit:\n")
+	fmt.Printf("  https://github.com/hugofrely/envswitch#installation\n")
 
 	return nil
 }

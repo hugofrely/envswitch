@@ -129,12 +129,8 @@ func findAssetURL(assets []Asset) string {
 
 // GetUpdateCommand returns the command to update envswitch
 func GetUpdateCommand() string {
-	if runtime.GOOS == "darwin" {
-		return "brew upgrade envswitch"
-	}
-
-	// For Linux or manual installations
-	return "curl -sSL https://raw.githubusercontent.com/hugofrely/envswitch/main/install.sh | bash"
+	// Use install script for all platforms (macOS, Linux)
+	return "curl -fsSL https://raw.githubusercontent.com/hugofrely/envswitch/main/install.sh | bash"
 }
 
 // ShouldCheckForUpdate determines if we should check for updates based on last check time
