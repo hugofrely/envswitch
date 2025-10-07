@@ -5,7 +5,7 @@
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![Project Status](https://img.shields.io/badge/status-beta-yellow.svg)](PROJECT_STATUS.md)
+[![Project Status](https://img.shields.io/badge/status-stable-green.svg)](PROJECT_STATUS.md)
 
 EnvSwitch is a powerful CLI tool that captures, saves, and restores the complete state of your development environments. Switch instantly between work and personal projects, different client environments, or testing scenarios—without losing your authentication, configurations, or contexts.
 
@@ -16,22 +16,15 @@ EnvSwitch is a powerful CLI tool that captures, saves, and restores the complete
 As a developer, you probably work across multiple environments:
 
 ```bash
-# Client A - Morning
-gcloud auth login user@companyA.com
-gcloud config set project companyA-prod-123
-kubectl config use-context gke-companyA-cluster
-export ENV=production
+# Work - Morning
+gcloud auth login work@company.com
+gcloud config set project company-prod-123
+kubectl config use-context gke-work-cluster
 
-# Client B - Afternoon
-gcloud auth login user@companyB.com
-gcloud config set project companyB-dev-456
-kubectl config use-context gke-companyB-cluster
-export ENV=development
-
-# Personal projects - Evening
+# Personal - Evening
 gcloud auth login personal@gmail.com
+gcloud config set project personal-project
 kubectl config use-context minikube
-export ENV=local
 ```
 
 **This is exhausting.** And error-prone. What if you forget to switch? Deploy to the wrong environment? Lose hours troubleshooting?
@@ -41,15 +34,19 @@ export ENV=local
 **EnvSwitch creates snapshots of your entire dev environment.**
 
 ```bash
-# Create environment snapshots once
+# Setup your work environment
 envswitch create work --from-current
+envswitch switch work
+gcloud auth login work@company.com
+
+# Setup your personal environment
 envswitch create personal --from-current
-envswitch create clientA --from-current
+envswitch switch personal
+gcloud auth login personal@gmail.com
 
 # Then switch instantly, anytime
 envswitch switch work        # All your work configs restored
 envswitch switch personal    # All your personal configs restored
-envswitch switch clientA     # All clientA configs restored
 ```
 
 One command. Everything restored. **Instantly.**
@@ -141,21 +138,25 @@ Download the latest release from [GitHub Releases](https://github.com/hugofrely/
 # 1. Initialize EnvSwitch
 envswitch init
 
-# 2. Create your first environment (captures current state)
-envswitch create work --from-current \
-    --description "Work environment with company auth"
+# 2. Create work environment snapshot
+envswitch create work --from-current
+envswitch switch work
 
-# 3. Make changes to your environment
+# 3. Setup your work environment
+gcloud auth login work@company.com
+gcloud config set project company-prod-123
+
+# 4. Create personal environment snapshot
+envswitch create personal --from-current
+envswitch switch personal
+
+# 5. Setup your personal environment
 gcloud auth login personal@gmail.com
-kubectl config use-context minikube
+gcloud config set project personal-project
 
-# 4. Create another environment
-envswitch create personal --from-current \
-    --description "Personal projects"
-
-# 5. Switch between environments instantly!
-envswitch switch work      # Back to work configs
-envswitch switch personal  # Back to personal configs
+# 6. Switch between environments instantly!
+envswitch switch work      # Restores work@company.com
+envswitch switch personal  # Restores personal@gmail.com
 ```
 
 That's it! 🎉
@@ -430,70 +431,87 @@ hooks:
 
 ---
 
-## 🎓 Examples
+## 🎓 Real-World Examples
 
-### Multi-Client Consulting
+### Example 1: Work vs Personal
 
 ```bash
-# Setup
-envswitch create clientA --from-current
-envswitch create clientB --from-current
-envswitch create clientC --from-current
+# Setup work environment
+gcloud auth login work@company.com
+gcloud config set project company-prod-123
+kubectl config use-context gke-company-cluster
+envswitch create work --from-current
 
-# Daily work
+# Setup personal environment
+gcloud auth login personal@gmail.com
+gcloud config set project my-side-project
+kubectl config use-context minikube
+envswitch create personal --from-current
+
+# Daily usage
+envswitch switch work      # 9am - Start work
+envswitch switch personal  # 6pm - Side projects
+```
+
+### Example 2: Multi-Client Consulting
+
+```bash
+# Client A environment
+gcloud auth login consultant@clientA.com
+aws configure  # Setup AWS for Client A
+envswitch create clientA --from-current
+
+# Client B environment
+gcloud auth login consultant@clientB.com
+aws configure  # Setup AWS for Client B
+envswitch create clientB --from-current
+
+# Switch throughout the day
 envswitch switch clientA   # Morning meeting
 envswitch switch clientB   # Afternoon development
-envswitch switch clientC   # Code review
 ```
 
-### Work vs Personal
+### Example 3: Production vs Staging
 
 ```bash
-# Work hours
-envswitch switch work
+# Production environment
+gcloud auth login ops@company.com
+gcloud config set project company-prod
+kubectl config use-context production-cluster
+envswitch create production --from-current
 
-# After hours
-envswitch switch personal
-```
+# Staging environment
+gcloud config set project company-staging
+kubectl config use-context staging-cluster
+envswitch create staging --from-current
 
-### Production vs Staging vs Dev
-
-```bash
-envswitch create prod --from-current
-envswitch create staging --from prod
-envswitch create dev --empty
-
-# Safe switching
-envswitch switch prod --verify
+# Safe switching with verification
+envswitch switch production --verify
+envswitch switch staging
 ```
 
 ---
 
-## 🚧 Development Status
+## ✅ Production Ready
 
-**Current Version:** `0.1.0-alpha`
+EnvSwitch is **production-ready** and stable! All core features are fully implemented and tested.
 
-This project is in **early development**. Core features are being implemented.
+**Features:**
 
-**What Works:**
+- ✅ Environment creation, listing, switching, and deletion
+- ✅ Complete snapshot support for gcloud, kubectl, aws, docker, and git
+- ✅ Automatic backup system with retention policy
+- ✅ Environment variables capture and restore
+- ✅ History tracking with rollback capability
+- ✅ Import/Export for backup and sharing
+- ✅ Shell integration with prompt indicators
+- ✅ Auto-completion for bash, zsh, and fish
+- ✅ Pre/post switch hooks for automation
+- ✅ Plugin system for custom tool support
+- ✅ Comprehensive configuration options
+- ✅ Dry-run and verification modes
 
-- ✅ Environment creation
-- ✅ Environment listing & detailed view
-- ✅ Environment deletion with archives
-- ✅ Environment switching with loading spinner
-- ✅ Tool snapshot capture (gcloud, kubectl, aws, docker, git)
-- ✅ Backup system with retention policy
-- ✅ Environment variables capture/restore
-- ✅ Configuration system
-- ✅ History tracking with detailed view
-- ✅ Import/Export environments
-- ✅ Shell integration (bash, zsh, fish)
-- ✅ Auto-completion
-- ✅ Hooks system (pre/post switch)
-- ✅ Verbose mode for detailed logging
-- ✅ Plugin system with auto-activation (no code required for most plugins)
-
-The project is feature-complete for its intended use case. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for details.
+See [PROJECT_STATUS.md](PROJECT_STATUS.md) for details.
 
 ---
 
@@ -553,17 +571,24 @@ Built for developers tired of manual environment switching.
 
 ---
 
-## ⚠️ Important Notice
+## ⚠️ Best Practices
 
-**This is alpha software.** Not recommended for production use yet.
+While EnvSwitch is production-ready, we recommend:
 
-**Always backup your configurations** before using EnvSwitch:
+**Initial Setup:**
 
 ```bash
-# Backup your configs
+# Create a safety backup before first use
 cp -r ~/.config/gcloud ~/.config/gcloud.backup
 cp -r ~/.kube ~/.kube.backup
 cp -r ~/.aws ~/.aws.backup
+```
+
+**Regular Backups:**
+
+```bash
+# Export your environments regularly
+envswitch export --all --output ~/envswitch-backups
 ```
 
 ---
