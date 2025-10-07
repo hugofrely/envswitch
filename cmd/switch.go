@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
 
 	"github.com/hugofrely/envswitch/internal/archive"
@@ -18,6 +17,7 @@ import (
 	"github.com/hugofrely/envswitch/internal/logger"
 	"github.com/hugofrely/envswitch/pkg/environment"
 	"github.com/hugofrely/envswitch/pkg/plugin"
+	"github.com/hugofrely/envswitch/pkg/spinner"
 	"github.com/hugofrely/envswitch/pkg/tools"
 )
 
@@ -133,11 +133,8 @@ func performSwitch(currentEnv *environment.Environment, targetName, fromName str
 		return err
 	}
 
-	logger.Info("Switching from '%s' to '%s'", fromName, targetName)
-
 	// Create and start spinner
-	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-	s.Suffix = fmt.Sprintf(" Switching from '%s' to '%s'...", fromName, targetName)
+	s := spinner.New(fmt.Sprintf("Switching from '%s' to '%s'", fromName, targetName))
 	s.Start()
 
 	historyEntry := history.SwitchEntry{
@@ -147,33 +144,38 @@ func performSwitch(currentEnv *environment.Environment, targetName, fromName str
 		Success:   false,
 	}
 
+	s.Update("Creating backup...")
 	backupPath, err := createBackup(currentEnv, &historyEntry, cfg)
 	if err != nil {
-		s.Stop()
+		s.Error(fmt.Sprintf("Failed to create backup: %v", err))
 		return err
 	}
 
+	s.Update("Saving current state...")
 	if saveErr := saveCurrentState(currentEnv); saveErr != nil {
-		s.Stop()
+		s.Error(fmt.Sprintf("Failed to save current state: %v", saveErr))
 		return saveErr
 	}
 
+	s.Update("Running pre-switch hooks...")
 	if hookErr := executePreSwitchHooks(targetEnv, targetName, &historyEntry, startTime); hookErr != nil {
-		s.Stop()
+		s.Error(fmt.Sprintf("Pre-switch hook failed: %v", hookErr))
 		return hookErr
 	}
 
+	s.Update("Restoring environment...")
 	toolCount, err := restoreTargetState(targetEnv, &historyEntry, startTime)
 	if err != nil {
-		s.Stop()
+		s.Error(fmt.Sprintf("Failed to restore environment: %v", err))
 		return err
 	}
 	historyEntry.ToolsCount = toolCount
 
+	s.Update("Running post-switch hooks...")
 	executePostSwitchHooks(targetEnv, targetName)
 
 	if err := finalizeSwitch(targetEnv, targetName, &historyEntry, startTime, backupPath, s); err != nil {
-		s.Stop()
+		s.Error(fmt.Sprintf("Failed to finalize switch: %v", err))
 		return err
 	}
 
@@ -281,9 +283,7 @@ func finalizeSwitch(targetEnv *environment.Environment, targetName string, entry
 	recordHistory(entry)
 
 	// Stop spinner and show success message
-	s.Stop()
-	fmt.Printf("✅ Successfully switched to '%s' (%.2fs)\n", targetName, time.Since(startTime).Seconds())
-	logger.Info("Successfully switched to '%s' in %.2fs", targetName, time.Since(startTime).Seconds())
+	s.Success(fmt.Sprintf("Successfully switched to '%s' (%.2fs)", targetName, time.Since(startTime).Seconds()))
 
 	if backupPath != "" {
 		logger.Debug("Backup: %s", filepath.Base(backupPath))

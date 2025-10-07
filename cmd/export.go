@@ -36,7 +36,8 @@ Examples:
 
   # Export to current directory (default)
   envswitch export work`,
-	RunE: runExport,
+	ValidArgsFunction: completeEnvironmentNames,
+	RunE:              runExport,
 }
 
 func init() {
@@ -54,9 +55,6 @@ func runExport(cmd *cobra.Command, args []string) error {
 	if !exportAll && len(args) == 0 {
 		return fmt.Errorf("must specify at least one environment name or use --all flag")
 	}
-
-	fmt.Println("📦 Exporting environments...")
-	fmt.Println()
 
 	// Export all environments
 	if exportAll {

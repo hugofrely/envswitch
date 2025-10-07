@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/hugofrely/envswitch/pkg/environment"
+	"github.com/hugofrely/envswitch/pkg/spinner"
 )
 
 // ImportOptions defines options for importing environments
@@ -21,19 +22,26 @@ type ImportOptions struct {
 
 // ImportEnvironment imports an environment from an archive file
 func ImportEnvironment(archivePath string, options ImportOptions) error {
+	spin := spinner.New(fmt.Sprintf("Importing %s", filepath.Base(archivePath)))
+	spin.Start()
+
 	// Check if archive exists
 	if _, err := os.Stat(archivePath); os.IsNotExist(err) {
+		spin.Error(fmt.Sprintf("Archive file not found: %s", archivePath))
 		return fmt.Errorf("archive file not found: %s", archivePath)
 	}
 
 	// Validate archive format
 	if !strings.HasSuffix(archivePath, ".tar.gz") && !strings.HasSuffix(archivePath, ".tgz") {
+		spin.Error("Invalid archive format")
 		return fmt.Errorf("invalid archive format: must be .tar.gz or .tgz")
 	}
 
+	spin.Update("Opening archive...")
 	// Open archive
 	file, err := os.Open(archivePath)
 	if err != nil {
+		spin.Error("Failed to open archive")
 		return fmt.Errorf("failed to open archive: %w", err)
 	}
 	defer file.Close()
@@ -41,6 +49,7 @@ func ImportEnvironment(archivePath string, options ImportOptions) error {
 	// Create gzip reader
 	gzipReader, err := gzip.NewReader(file)
 	if err != nil {
+		spin.Error("Failed to read archive")
 		return fmt.Errorf("failed to create gzip reader: %w", err)
 	}
 	defer gzipReader.Close()
@@ -51,13 +60,16 @@ func ImportEnvironment(archivePath string, options ImportOptions) error {
 	// Extract to temporary directory first
 	tempDir, err := os.MkdirTemp("", "envswitch-import-*")
 	if err != nil {
+		spin.Error("Failed to create temp directory")
 		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 
 	// Extract archive
+	spin.Update("Extracting archive...")
 	envName, err := extractTarArchive(tarReader, tempDir)
 	if err != nil {
+		spin.Error("Failed to extract archive")
 		return err
 	}
 
@@ -70,25 +82,31 @@ func ImportEnvironment(archivePath string, options ImportOptions) error {
 	// Check if environment already exists
 	envDir, err := environment.GetEnvironmentsDir()
 	if err != nil {
+		spin.Error("Failed to get environments directory")
 		return fmt.Errorf("failed to get environments directory: %w", err)
 	}
 
 	finalEnvPath := filepath.Join(envDir, finalEnvName)
 	if _, err := os.Stat(finalEnvPath); err == nil {
 		if !options.Force {
+			spin.Error(fmt.Sprintf("Environment '%s' already exists", finalEnvName))
 			return fmt.Errorf("environment '%s' already exists (use --force to overwrite)", finalEnvName)
 		}
 		// Remove existing environment
+		spin.Update(fmt.Sprintf("Removing existing environment '%s'", finalEnvName))
 		if err := os.RemoveAll(finalEnvPath); err != nil {
+			spin.Error("Failed to remove existing environment")
 			return fmt.Errorf("failed to remove existing environment: %w", err)
 		}
 	}
 
 	// Move from temp to final location
+	spin.Update(fmt.Sprintf("Installing environment '%s'", finalEnvName))
 	extractedPath := filepath.Join(tempDir, envName)
 	if err := os.Rename(extractedPath, finalEnvPath); err != nil {
 		// If rename fails (cross-device), copy instead
 		if err := copyDir(extractedPath, finalEnvPath); err != nil {
+			spin.Error("Failed to install environment")
 			return fmt.Errorf("failed to move environment: %w", err)
 		}
 	}
@@ -100,11 +118,13 @@ func ImportEnvironment(archivePath string, options ImportOptions) error {
 			env.Name = finalEnvName
 			env.Path = finalEnvPath
 			if err := env.Save(); err != nil {
-				fmt.Printf("Warning: Failed to update environment name in metadata: %v\n", err)
+				spin.Error("Failed to update environment metadata")
+				return fmt.Errorf("failed to update environment name in metadata: %w", err)
 			}
 		}
 	}
 
+	spin.Success(fmt.Sprintf("Imported environment '%s'", finalEnvName))
 	return nil
 }
 
@@ -122,6 +142,9 @@ func ImportAll(dirPath string, force bool) error {
 	}
 
 	imported := 0
+	archives := []string{}
+
+	// First, collect all archives
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -131,15 +154,20 @@ func ImportAll(dirPath string, force bool) error {
 		if !strings.HasSuffix(name, ".tar.gz") && !strings.HasSuffix(name, ".tgz") {
 			continue
 		}
+		archives = append(archives, name)
+	}
 
+	// Import each archive with progress
+	for i, name := range archives {
 		archivePath := filepath.Join(dirPath, name)
 		options := ImportOptions{
 			ArchivePath: archivePath,
 			Force:       force,
 		}
 
+		// ImportEnvironment has its own spinner
 		if err := ImportEnvironment(archivePath, options); err != nil {
-			fmt.Printf("Warning: Failed to import '%s': %v\n", name, err)
+			fmt.Printf("✗ [%d/%d] Failed to import %s\n", i+1, len(archives), name)
 			continue
 		}
 
