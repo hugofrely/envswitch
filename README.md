@@ -435,16 +435,18 @@ hooks:
 
 ```bash
 # Setup work environment
+envswitch create work --from-current
+envswitch switch work
 gcloud auth login work@company.com
 gcloud config set project company-prod-123
 kubectl config use-context gke-company-cluster
-envswitch create work --from-current
 
 # Setup personal environment
+envswitch create personal --from-current
+envswitch switch personal
 gcloud auth login personal@gmail.com
 gcloud config set project my-side-project
 kubectl config use-context minikube
-envswitch create personal --from-current
 
 # Daily usage
 envswitch switch work      # 9am - Start work
@@ -455,14 +457,16 @@ envswitch switch personal  # 6pm - Side projects
 
 ```bash
 # Client A environment
+envswitch create clientA --from-current
+envswitch switch clientA
 gcloud auth login consultant@clientA.com
 aws configure  # Setup AWS for Client A
-envswitch create clientA --from-current
 
 # Client B environment
+envswitch create clientB --from-current
+envswitch switch clientB
 gcloud auth login consultant@clientB.com
 aws configure  # Setup AWS for Client B
-envswitch create clientB --from-current
 
 # Switch throughout the day
 envswitch switch clientA   # Morning meeting
@@ -473,15 +477,17 @@ envswitch switch clientB   # Afternoon development
 
 ```bash
 # Production environment
+envswitch create production --from-current
+envswitch switch production
 gcloud auth login ops@company.com
 gcloud config set project company-prod
 kubectl config use-context production-cluster
-envswitch create production --from-current
 
 # Staging environment
+envswitch create staging --from-current
+envswitch switch staging
 gcloud config set project company-staging
 kubectl config use-context staging-cluster
-envswitch create staging --from-current
 
 # Safe switching with verification
 envswitch switch production --verify
