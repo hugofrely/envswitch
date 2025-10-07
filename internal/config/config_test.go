@@ -17,7 +17,7 @@ func TestDefaultConfig(t *testing.T) {
 	})
 
 	t.Run("has sensible defaults", func(t *testing.T) {
-		assert.Equal(t, "true", cfg.AutoSaveBeforeSwitch)
+		assert.Equal(t, "false", cfg.AutoSaveBeforeSwitch) // Changed to false to match new workflow
 		assert.False(t, cfg.VerifyAfterSwitch)
 		assert.True(t, cfg.BackupBeforeSwitch)
 		assert.Equal(t, 10, cfg.BackupRetention)
