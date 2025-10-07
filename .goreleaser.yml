@@ -21,9 +21,9 @@ builds:
     binary: envswitch
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
-      - -X main.commit={{.Commit}}
-      - -X main.date={{.Date}}
+      - -X github.com/hugofrely/envswitch/internal/version.Version={{.Version}}
+      - -X github.com/hugofrely/envswitch/internal/version.GitCommit={{.Commit}}
+      - -X github.com/hugofrely/envswitch/internal/version.BuildDate={{.Date}}
 
 archives:
   - format: tar.gz

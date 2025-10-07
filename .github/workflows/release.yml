@@ -38,7 +38,7 @@ jobs:
 
       - name: Build for all platforms
         run: |
-          LDFLAGS="-X github.com/hugofrely/envswitch/cmd.Version=${{ steps.version.outputs.version }} -X github.com/hugofrely/envswitch/cmd.GitCommit=${{ steps.version.outputs.commit }} -X github.com/hugofrely/envswitch/cmd.BuildDate=${{ steps.version.outputs.date }}"
+          LDFLAGS="-X github.com/hugofrely/envswitch/internal/version.Version=${{ steps.version.outputs.version }} -X github.com/hugofrely/envswitch/internal/version.GitCommit=${{ steps.version.outputs.commit }} -X github.com/hugofrely/envswitch/internal/version.BuildDate=${{ steps.version.outputs.date }}"
           
           # Linux AMD64
           GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o bin/envswitch-linux-amd64
