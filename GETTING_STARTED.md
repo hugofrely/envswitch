@@ -1,6 +1,6 @@
 # Getting Started with EnvSwitch Development
 
-Welcome to EnvSwitch! This guide will help you set up your development environment and start contributing.
+Welcome to EnvSwitch! This guide will help you set up your development environment and start contributing to this production-ready CLI tool.
 
 ## Prerequisites
 
@@ -208,7 +208,7 @@ Go to GitHub and create a PR from your branch.
 
 Example:
 ```go
-// cmd/version.go
+// cmd/mycommand.go
 package cmd
 
 import (
@@ -216,16 +216,16 @@ import (
     "github.com/spf13/cobra"
 )
 
-var versionCmd = &cobra.Command{
-    Use:   "version",
-    Short: "Print version",
+var myCmd = &cobra.Command{
+    Use:   "mycommand",
+    Short: "Brief description of your command",
     Run: func(cmd *cobra.Command, args []string) {
-        fmt.Println("envswitch v0.1.0")
+        fmt.Println("Executing mycommand")
     },
 }
 
 func init() {
-    rootCmd.AddCommand(versionCmd)
+    rootCmd.AddCommand(myCmd)
 }
 ```
 
