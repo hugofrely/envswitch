@@ -5,7 +5,7 @@ Welcome to EnvSwitch! This guide will help you set up your development environme
 ## Prerequisites
 
 ### Required
-- **Go 1.21 or higher** - [Install Go](https://golang.org/doc/install)
+- **Go 1.21+** - [Install Go](https://golang.org/doc/install)
 - **Git** - [Install Git](https://git-scm.com/downloads)
 
 ### Recommended

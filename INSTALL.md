@@ -105,7 +105,7 @@ envswitch --version
 
 ## Install from Source
 
-Requires Go 1.23 or later:
+Requires Go 1.21+:
 
 ```bash
 # Clone repository

@@ -1,5 +1,6 @@
 # EnvSwitch 🔄
 
+[![CI](https://img.shields.io/github/actions/workflow/status/hugofrely/envswitch/ci.yml?logo=github)](https://github.com/hugofrely/envswitch/actions)
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
@@ -103,67 +104,29 @@ Captures complete state of:
 
 ### Installation
 
-#### Option 1: Install Script (Recommended for macOS/Linux)
-
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hugofrely/envswitch/main/install.sh | bash
 ```
 
-Or with wget:
-
-```bash
-wget -qO- https://raw.githubusercontent.com/hugofrely/envswitch/main/install.sh | bash
-```
-
-#### Option 2: Go Install
-
-```bash
-go install github.com/hugofrely/envswitch@latest
-```
-
-#### Option 3: Build from Source
-
-```bash
-git clone https://github.com/hugofrely/envswitch.git
-cd envswitch
-make install
-```
-
-#### Option 4: Download Binary
-
-Download the latest release from [GitHub Releases](https://github.com/hugofrely/envswitch/releases).
+See [INSTALL.md](INSTALL.md) for other installation methods.
 
 ### First Steps
 
 ```bash
-# 1. Initialize EnvSwitch
+# Initialize
 envswitch init
 
-# 2. Setup your work environment first
-gcloud auth login work@company.com
-gcloud config set project company-prod-123
-kubectl config use-context work-cluster
-
-# 3. Create and capture work environment (auto-switches to it)
+# Capture current state
 envswitch create work --from-current
 
-# 4. Setup your personal environment
-gcloud auth login personal@gmail.com
-gcloud config set project personal-project
-kubectl config use-context personal-cluster
-
-# 5. Create and capture personal environment (auto-switches to it)
+# Make changes and capture another
 envswitch create personal --from-current
 
-# 6. Switch between environments instantly!
-envswitch switch work      # Restores work@company.com
-envswitch switch personal  # Restores personal@gmail.com
-
-# 7. If you make changes to your environment, save them
-envswitch save            # Updates current environment
+# Switch instantly
+envswitch switch work
 ```
 
-That's it! 🎉
+See [Quick Start Guide](docs/QUICKSTART.md) for detailed walkthrough.
 
 ---
 
@@ -310,17 +273,11 @@ envswitch import --all ./backups
 # List installed plugins
 envswitch plugin list
 
-# Install plugin (automatically activates in all environments)
+# Install plugin
 envswitch plugin install ./my-plugin
-
-# Show plugin information
-envswitch plugin info terraform
-
-# Remove plugin
-envswitch plugin remove terraform
 ```
 
-**📖 Plugin Development**: EnvSwitch makes it easy to add support for new tools! Most plugins require **zero Go code**—just a simple YAML file. See [Plugin Documentation](docs/PLUGINS.md) to create your own plugin in 2 minutes.
+**📖 Plugin Development**: Create plugins for any tool in 2 minutes—no code required! See [Plugin Documentation](docs/PLUGINS.md).
 
 ---
 
@@ -383,31 +340,16 @@ If anything goes wrong, your data is safe in auto-backups!
 
 ## ⚙️ Configuration
 
-Global config at `~/.envswitch/config.yaml`:
+```bash
+# View all config
+envswitch config list
 
-```yaml
-# Behavior
-auto_save_before_switch: false # Auto-save before switching (false by default)
-verify_after_switch: false # Verify connectivity after switch
-backup_before_switch: true # Create backup before each switch
-backup_retention: 10 # Keep last 10 auto-backups
-
-# UI
-color_output: true # Colored output
-show_timestamps: false # Show timestamps in output
-
-# Shell Integration
-enable_prompt_integration: true # Show env in prompt
-prompt_format: "({name})" # Format: (work)
-prompt_color: blue # Prompt color
-
-# Logging
-log_level: warn # debug, info, warn, error (default: warn)
-log_file: ~/.envswitch/envswitch.log
-
-# Tools
-exclude_tools: [] # Skip specific tools (e.g., ["docker", "aws"])
+# Set config values
+envswitch config set auto_save_before_switch false
+envswitch config set log_level debug
 ```
+
+See [Quick Start Guide](docs/QUICKSTART.md#configuration) for all configuration options.
 
 ---
 
